@@ -1,4 +1,4 @@
-# SensAI
+# SensAI - A AI powered Career Coach platform providing cover letter generation, mock interview practice, career guidance, performance tracking and many more featres...
 ### Make sure to create a `.env` file with following variables -
 
 ```
