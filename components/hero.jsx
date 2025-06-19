@@ -4,6 +4,9 @@ import React, { useEffect, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Youtube } from "lucide-react";
+
+
 
 const HeroSection = () => {
   const imageRef = useRef(null);
@@ -46,9 +49,14 @@ const HeroSection = () => {
               Get Started
             </Button>
           </Link>
-          <Link href="https://www.youtube.com/roadsidecoder">
-            <Button size="lg" variant="outline" className="px-8">
-              Watch Demo
+          <Link href="https://www.youtube.com/roadsidecoder" target="_blank">
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-8 flex items-center gap-2"
+            >
+              <Youtube size={18} color="#FF0000" /> {/* YouTube red */}
+              Inspired By A Guide
             </Button>
           </Link>
         </div>
