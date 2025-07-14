@@ -76,7 +76,7 @@ Start the development server:
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to access SensAI.
+**SensAI is live at [https://sens-ai-harsh810.live/](https://sens-ai-harsh810.live/) – hosted on Vercel.**
 
 ---
 
