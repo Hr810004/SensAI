@@ -1,25 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 import DashboardView from "./_component/dashboard-view";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function DashboardPage() {
   const [insights, setInsights] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // If navigated via client-side navigation, force a reload
-    if (typeof window !== "undefined") {
-      // If navigation type is not TYPE_RELOAD (1), force reload
-      if (performance && performance.getEntriesByType) {
-        const navEntries = performance.getEntriesByType("navigation");
-        if (navEntries.length > 0 && navEntries[0].type !== "reload") {
-          window.location.reload();
-          return;
-        }
-      }
+    if (typeof window !== "undefined" && !searchParams.get("reloaded")) {
+      router.replace("/dashboard?reloaded=1");
+      window.location.reload();
+      return;
     }
     setLoading(true);
     setError(null);
@@ -53,7 +48,7 @@ export default function DashboardPage() {
         setError(err.message || "Not authenticated or onboarding status error");
         setLoading(false);
       });
-  }, [router]);
+  }, [router, searchParams]);
 
   if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {
