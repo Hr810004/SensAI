@@ -10,18 +10,15 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Only reload once per session
+    // Only skip redirect if coming directly from onboarding (flag set)
     if (typeof window !== "undefined") {
-      if (!window.sessionStorage.getItem("dashboardReloaded")) {
-        window.sessionStorage.setItem("dashboardReloaded", "true");
-        window.location.reload();
-        return;
+      if (window.sessionStorage.getItem("skipDashboardReload")) {
+        window.sessionStorage.removeItem("skipDashboardReload");
       } else {
-        // Remove the flag so next visit will reload again
-        window.sessionStorage.removeItem("dashboardReloaded");
+        router.replace("/dashboard");
+        return;
       }
     }
-
     setLoading(true);
     setError(null);
     // First, check onboarding status
