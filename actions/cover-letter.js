@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-latest" });
 
 export async function generateCoverLetter(data) {
   const { userId } = await auth();
@@ -18,9 +18,7 @@ export async function generateCoverLetter(data) {
   if (!user) throw new Error("User not found");
 
   const prompt = `
-    Write a professional cover letter for a ${data.jobTitle} position at ${
-    data.companyName
-  }.
+    Write a highly professional, unique, and compelling cover letter for a ${data.jobTitle} position at ${data.companyName}.
     
     About the candidate:
     - Industry: ${user.industry}
@@ -32,13 +30,17 @@ export async function generateCoverLetter(data) {
     ${data.jobDescription}
     
     Requirements:
-    1. Use a professional, enthusiastic tone
-    2. Highlight relevant skills and experience
-    3. Show understanding of the company's needs
-    4. Keep it concise (max 400 words)
-    5. Use proper business letter formatting in markdown
-    6. Include specific examples of achievements
-    7. Relate candidate's background to job requirements
+    1. Use a professional, enthusiastic, and confident tone
+    2. Start with a strong, tailored opening that grabs attention and references the company/role
+    3. Highlight the most relevant skills and experience, using specific, quantifiable achievements (numbers, metrics, or results) where possible
+    4. Show deep understanding of the company's needs and culture—reference the company mission, values, or recent news if possible
+    5. Vary sentence structure and vocabulary to avoid generic or repetitive phrasing
+    6. End with a memorable, personalized closing that invites further discussion
+    7. Do NOT repeat content or structure from previous cover letters; make each letter unique and tailored
+    8. Keep it concise (max 400 words)
+    9. Use proper business letter formatting in markdown
+    10. Relate candidate's background to job requirements in a creative way
+    11. Avoid clichés and generic statements—be specific and authentic
     
     Format the letter in markdown.
   `;
