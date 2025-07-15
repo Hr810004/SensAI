@@ -12,17 +12,34 @@ export default function DashboardPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/industry-insights")
+    // First, check onboarding status
+    fetch("/api/user-onboarding-status")
       .then(async (res) => {
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new Error("Not authenticated or onboarding status error");
         return res.json();
       })
       .then((data) => {
-        setInsights(data);
-        setLoading(false);
+        if (!data.isOnboarded) {
+          router.replace("/onboarding");
+          return;
+        }
+        // Now fetch insights
+        fetch("/api/industry-insights")
+          .then(async (res) => {
+            if (!res.ok) throw new Error(await res.text());
+            return res.json();
+          })
+          .then((data) => {
+            setInsights(data);
+            setLoading(false);
+          })
+          .catch((err) => {
+            setError(err.message || "Failed to load industry insights.");
+            setLoading(false);
+          });
       })
       .catch((err) => {
-        setError(err.message || "Failed to load industry insights.");
+        setError(err.message || "Not authenticated or onboarding status error");
         setLoading(false);
       });
   }, [router]);
@@ -33,7 +50,7 @@ export default function DashboardPage() {
       <div className="container mx-auto text-center py-20">
         <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
         <p className="text-lg text-muted-foreground">{error}</p>
-        <p className="mt-4">Try refreshing the page or contact support if the problem persists.</p>
+        <p className="mt-4">Try refreshing the page, sign in again, or contact support if the problem persists.</p>
       </div>
     );
   }
