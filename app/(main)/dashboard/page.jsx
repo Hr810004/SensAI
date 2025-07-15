@@ -1,21 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
 import DashboardView from "./_component/dashboard-view";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const [insights, setInsights] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !searchParams.get("reloaded")) {
-      router.replace("/dashboard?reloaded=1");
-      window.location.reload();
-      return;
+    // Only reload once per session
+    if (typeof window !== "undefined") {
+      if (!window.sessionStorage.getItem("dashboardReloaded")) {
+        window.sessionStorage.setItem("dashboardReloaded", "true");
+        window.location.reload();
+        return;
+      } else {
+        // Remove the flag so next visit will reload again
+        window.sessionStorage.removeItem("dashboardReloaded");
+      }
     }
+
     setLoading(true);
     setError(null);
     // First, check onboarding status
@@ -48,7 +54,7 @@ export default function DashboardPage() {
         setError(err.message || "Not authenticated or onboarding status error");
         setLoading(false);
       });
-  }, [router, searchParams]);
+  }, [router]);
 
   if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {
