@@ -10,6 +10,17 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // If navigated via client-side navigation, force a reload
+    if (typeof window !== "undefined") {
+      // If navigation type is not TYPE_RELOAD (1), force reload
+      if (performance && performance.getEntriesByType) {
+        const navEntries = performance.getEntriesByType("navigation");
+        if (navEntries.length > 0 && navEntries[0].type !== "reload") {
+          window.location.reload();
+          return;
+        }
+      }
+    }
     setLoading(true);
     setError(null);
     // First, check onboarding status
