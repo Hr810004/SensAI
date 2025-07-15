@@ -14,6 +14,7 @@ model User {
   name          String?
   imageUrl      String?
   industry      String?    // Combined industry-subindustry (e.g., "tech-software-development")
+  subIndustry   String?    // User's specialization/sub-industry
   industryInsight IndustryInsight? @relation(fields: [industry], references: [industry])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -22,6 +23,7 @@ model User {
   bio           String?
   experience    Int?      // Years of experience
   targetRole    String?   // User's target job/role for skill gap analysis
+  leetcodeUsername String? // User's LeetCode username
   // Relations
   skills        String[]  // Array of skills
   assessments   Assessment[]

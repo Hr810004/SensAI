@@ -17,6 +17,8 @@ import {
   TrendingDown,
   Brain,
   Loader2,
+  InfoIcon,
+  BookOpenIcon,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -40,6 +42,61 @@ const DashboardView = ({ insights: initialInsights, user }) => {
   const [skillGap, setSkillGap] = useState(null);
   const [gapLoading, setGapLoading] = useState(false);
   const [gapError, setGapError] = useState(null);
+  const [leetcodeStats, setLeetcodeStats] = useState(null);
+  const [leetcodeLoading, setLeetcodeLoading] = useState(false);
+  const [leetcodeError, setLeetcodeError] = useState(null);
+  const [geminiRec, setGeminiRec] = useState(null);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiError, setGeminiError] = useState(null);
+
+  useEffect(() => {
+    if (user.leetcodeUsername) {
+      setLeetcodeLoading(true);
+      setLeetcodeError(null);
+      setLeetcodeStats(null);
+      fetch(`/api/leetcode-stats?username=${user.leetcodeUsername}`)
+        .then(async (res) => {
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        })
+        .then((data) => {
+          setLeetcodeStats(data);
+          setLeetcodeLoading(false);
+        })
+        .catch((err) => {
+          setLeetcodeError(err.message || "Failed to fetch LeetCode stats");
+          setLeetcodeLoading(false);
+        });
+    }
+  }, [user.leetcodeUsername]);
+
+  useEffect(() => {
+    if (leetcodeStats && user.targetRole) {
+      setGeminiLoading(true);
+      setGeminiError(null);
+      setGeminiRec(null);
+      fetch("/api/gemini-recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leetcodeStats,
+          targetRole: user.targetRole,
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        })
+        .then((data) => {
+          setGeminiRec(data.recommendation);
+          setGeminiLoading(false);
+        })
+        .catch((err) => {
+          setGeminiError(err.message || "Failed to get AI recommendation");
+          setGeminiLoading(false);
+        });
+    }
+  }, [leetcodeStats, user.targetRole]);
 
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
@@ -91,21 +148,19 @@ const DashboardView = ({ insights: initialInsights, user }) => {
     setGapError(null);
     setSkillGap(null);
     try {
-      // Placeholder for API call
-      // const res = await fetch("/api/skill-gap-analysis", { method: "POST", body: JSON.stringify({ skills: user.skills, targetRole: user.targetRole }) });
-      // const data = await res.json();
-      // setSkillGap(data);
-      setTimeout(() => {
-        setSkillGap({
-          gap: "You need to learn React, TypeScript, and System Design for your target role.",
-          recommendations: [
-            { title: "React for Beginners", url: "https://react.dev/learn" },
-            { title: "TypeScript Handbook", url: "https://www.typescriptlang.org/docs/" },
-            { title: "System Design Primer", url: "https://github.com/donnemartin/system-design-primer" },
-          ],
-        });
-        setGapLoading(false);
-      }, 1200);
+      const res = await fetch("/api/gemini-recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skillGap: true,
+          skills: user.skills,
+          targetRole: user.targetRole,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setSkillGap(data);
+      setGapLoading(false);
     } catch (e) {
       setGapError("Failed to analyze skill gap.");
       setGapLoading(false);
@@ -150,35 +205,107 @@ const DashboardView = ({ insights: initialInsights, user }) => {
       )}
 
       {/* Skill Gap Analysis & Learning Path */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Skill Gap Analysis & Learning Path</CardTitle>
-          <CardDescription>
-            Target Role: <span className="font-semibold">{user?.targetRole || "Not set"}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleSkillGapAnalysis} disabled={gapLoading}>
+      <Card className="mb-6 shadow-lg border-2 border-primary/30 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-lg p-6">
+          <div className="flex items-center gap-3">
+            <Brain className="h-8 w-8 text-white drop-shadow-lg" />
+            <div>
+              <CardTitle className="text-white text-2xl font-bold drop-shadow">Skill Gap Analysis & Learning Path</CardTitle>
+              <CardDescription className="text-blue-100 mt-1">
+                Target Role: {user?.targetRole ? (
+                  <Badge className="ml-2 bg-white/20 text-white border-white/30 px-3 py-1 text-base font-semibold">{user.targetRole}</Badge>
+                ) : (
+                  <span className="italic text-white/70">Not set</span>
+                )}
+              </CardDescription>
+            </div>
+          </div>
+          <Button onClick={handleSkillGapAnalysis} disabled={gapLoading} className="mt-4 md:mt-0 bg-white text-blue-700 hover:bg-blue-100 font-semibold shadow">
             {gapLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
             Analyze My Skill Gap
           </Button>
+        </CardHeader>
+        <CardContent>
           {gapError && <div className="text-red-600 mt-2">{gapError}</div>}
           {skillGap && (
-            <div className="mt-4">
-              <div className="mb-2 font-medium">AI Analysis:</div>
-              <div className="mb-2">{skillGap.gap}</div>
-              <div className="mb-2 font-medium">Recommended Learning Resources:</div>
-              <ul className="list-disc ml-6">
+            <div className="mt-6 animate-fade-in">
+              <div className="flex items-center gap-2 mb-3">
+                <InfoIcon className="h-5 w-5 text-blue-500" />
+                <span className="font-semibold text-blue-700">AI Analysis</span>
+              </div>
+              <div className="bg-blue-100 border-l-4 border-blue-400 rounded-r-lg p-4 mb-4 text-blue-900 shadow-sm">
+                {skillGap.gap}
+              </div>
+              <div className="mb-2 font-medium text-indigo-700 flex items-center gap-2">
+                <BookOpenIcon className="h-5 w-5" />
+                Recommended Learning Resources:
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {skillGap.recommendations.map((rec) => (
-                  <li key={rec.url}>
-                    <a href={rec.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{rec.title}</a>
-                  </li>
+                  <a
+                    key={rec.url}
+                    href={rec.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group bg-white border border-indigo-200 rounded-lg p-4 shadow hover:shadow-lg transition-all duration-200 hover:bg-indigo-50"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <BookOpenIcon className="h-5 w-5 text-indigo-500 group-hover:text-indigo-700 transition" />
+                      <span className="font-semibold text-indigo-800 group-hover:text-indigo-900">{rec.title}</span>
+                      <svg className="h-4 w-4 text-indigo-400 ml-auto group-hover:text-indigo-700 transition" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                    </div>
+                    <div className="text-xs text-indigo-500 truncate">{rec.url}</div>
+                  </a>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* LeetCode Stats Section */}
+      {user.leetcodeUsername && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>LeetCode Progress</CardTitle>
+            <CardDescription>
+              Username: <span className="font-mono font-semibold">{user.leetcodeUsername}</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {leetcodeLoading && <div>Loading LeetCode stats...</div>}
+            {leetcodeError && <div className="text-red-600">{leetcodeError}</div>}
+            {leetcodeStats && (
+              <div className="space-y-2">
+                <div className="text-lg font-medium">
+                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
+                </div>
+                <div className="flex gap-4 text-sm text-muted-foreground">
+                  <span>Easy: {leetcodeStats.easySolved}</span>
+                  <span>Medium: {leetcodeStats.mediumSolved}</span>
+                  <span>Hard: {leetcodeStats.hardSolved}</span>
+                </div>
+              </div>
+            )}
+            {/* Gemini AI Recommendation */}
+            {leetcodeStats && (
+              <div className="mt-6">
+                <div className="font-semibold mb-2 text-indigo-700 flex items-center gap-2">
+                  <BookOpenIcon className="h-5 w-5" />
+                  Gemini AI Recommendations
+                </div>
+                {geminiLoading && <div>Loading recommendations...</div>}
+                {geminiError && <div className="text-red-600">{geminiError}</div>}
+                {geminiRec && (
+                  <div className="bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg p-4 text-indigo-900 shadow-sm animate-fade-in">
+                    {geminiRec}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Market Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -14,6 +14,7 @@ export default function EditProfile({ user, onProfileUpdated }) {
     skills: user.skills ? user.skills.join(", ") : "",
     bio: user.bio || "",
     targetRole: user.targetRole || "",
+    leetcodeUsername: user.leetcodeUsername || "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -71,6 +72,11 @@ export default function EditProfile({ user, onProfileUpdated }) {
           <div>
             <Label htmlFor="targetRole">Target Role</Label>
             <Input id="targetRole" name="targetRole" value={form.targetRole} onChange={handleChange} />
+          </div>
+          <div>
+            <Label htmlFor="leetcodeUsername">LeetCode Username</Label>
+            <Input id="leetcodeUsername" name="leetcodeUsername" value={form.leetcodeUsername} onChange={handleChange} placeholder="e.g., johndoe123" />
+            <p className="text-sm text-muted-foreground">Enter your public LeetCode username to display your stats on the dashboard</p>
           </div>
           <Button type="submit" disabled={loading} className="w-full mt-2">
             {loading ? "Saving..." : "Save Changes"}
