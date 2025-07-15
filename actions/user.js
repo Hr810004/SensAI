@@ -46,9 +46,12 @@ export async function updateUser(data) {
           },
           data: {
             industry: data.industry,
+            subIndustry: data.subIndustry, // <-- now included
             experience: data.experience,
             bio: data.bio,
             skills: data.skills,
+            leetcodeUsername: data.leetcodeUsername, // <-- now included
+            targetRole: data.targetRole, // <-- now included
           },
         });
 
@@ -109,8 +112,10 @@ export async function getCurrentUser() {
       skills: true,
       targetRole: true,
       industry: true,
+      subIndustry: true,         
       experience: true,
       bio: true,
+      leetcodeUsername: true, 
     },
   });
 
