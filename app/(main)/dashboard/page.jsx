@@ -10,13 +10,15 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Only skip redirect if coming directly from onboarding (flag set)
     if (typeof window !== "undefined") {
       if (window.sessionStorage.getItem("skipDashboardReload")) {
         window.sessionStorage.removeItem("skipDashboardReload");
-      } else {
+      } else if (!window.sessionStorage.getItem("dashboardRedirected")) {
+        window.sessionStorage.setItem("dashboardRedirected", "true");
         router.replace("/dashboard");
         return;
+      } else {
+        window.sessionStorage.removeItem("dashboardRedirected");
       }
     }
     setLoading(true);
