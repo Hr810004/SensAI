@@ -37,49 +37,55 @@ export const generateAIInsights = async (industry) => {
 };
 
 export async function getIndustryInsights() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-    include: {
-      industryInsight: true,
-    },
-  });
-
-  if (!user) throw new Error("User not found");
-
-  // If no insights exist, generate them
-  if (!user.industryInsight) {
-    const insights = await generateAIInsights(user.industry);
-    const industryInsight = await db.industryInsight.create({
-      data: {
-        industry: user.industry,
-        ...insights,
-        lastUpdated: new Date(),
-        nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+      include: {
+        industryInsight: true,
       },
     });
-    return industryInsight;
-  }
 
-  // Check if the data is stale (nextUpdate < now)
-  const now = new Date();
-  if (user.industryInsight.nextUpdate < now) {
-    // Refresh the data
-    const insights = await generateAIInsights(user.industry);
-    const updated = await db.industryInsight.update({
-      where: { industry: user.industry },
-      data: {
-        ...insights,
-        lastUpdated: now,
-        nextUpdate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
-    return updated;
-  }
+    if (!user) throw new Error("User not found");
+    if (!user.industry) throw new Error("User industry not set");
 
-  return user.industryInsight;
+    // If no insights exist, generate them
+    if (!user.industryInsight) {
+      const insights = await generateAIInsights(user.industry);
+      const industryInsight = await db.industryInsight.create({
+        data: {
+          industry: user.industry,
+          ...insights,
+          lastUpdated: new Date(),
+          nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+      return industryInsight;
+    }
+
+    // Check if the data is stale (nextUpdate < now)
+    const now = new Date();
+    if (user.industryInsight.nextUpdate < now) {
+      // Refresh the data
+      const insights = await generateAIInsights(user.industry);
+      const updated = await db.industryInsight.update({
+        where: { industry: user.industry },
+        data: {
+          ...insights,
+          lastUpdated: now,
+          nextUpdate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+      return updated;
+    }
+
+    return user.industryInsight;
+  } catch (error) {
+    console.error("Error in getIndustryInsights:", error);
+    throw new Error(error?.message || "Failed to fetch industry insights.");
+  }
 }
 
 export async function refreshIndustryInsights() {
