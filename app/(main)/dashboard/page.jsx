@@ -1,22 +1,33 @@
-import { getIndustryInsights } from "@/actions/dashboard";
+"use client";
+import { useEffect, useState } from "react";
 import DashboardView from "./_component/dashboard-view";
-import { getUserOnboardingStatus } from "@/actions/user";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-export default async function DashboardPage() {
-  const { isOnboarded } = await getUserOnboardingStatus();
+export default function DashboardPage() {
+  const [insights, setInsights] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  if (!isOnboarded) {
-    redirect("/onboarding");
-  }
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch("/api/industry-insights")
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      })
+      .then((data) => {
+        setInsights(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || "Failed to load industry insights.");
+        setLoading(false);
+      });
+  }, [router]);
 
-  let insights, error;
-  try {
-    insights = await getIndustryInsights();
-  } catch (e) {
-    error = e?.message || "Failed to load industry insights.";
-  }
-
+  if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {
     return (
       <div className="container mx-auto text-center py-20">
