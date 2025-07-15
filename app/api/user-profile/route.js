@@ -29,6 +29,7 @@ export async function PUT(req) {
     if (data.skills) updateData.skills = data.skills;
     if (data.bio !== undefined) updateData.bio = data.bio;
     if (data.targetRole !== undefined) updateData.targetRole = data.targetRole;
+    if (data.leetcodeUsername !== undefined) updateData.leetcodeUsername = data.leetcodeUsername;
     await db.user.update({
       where: { clerkUserId: userId },
       data: updateData,
