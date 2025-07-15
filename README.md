@@ -76,10 +76,6 @@ Start the development server:
 npm run dev
 ```
 
-**SensAI is live at [https://sens-ai-harsh810.live/](https://sens-ai-harsh810.live/) – hosted on Vercel.**
-
----
-
 ## 🌐 Deployment
 
 ### 1. Add Environment Variables
@@ -88,12 +84,9 @@ Add the `.env` variables to your hosting platform (e.g., Vercel, Railway, Render
 ### 2. Deploy
 Deploy your app using your preferred method. For Vercel, simply connect your repo and set the environment variables.
 
-<<<<<<< HEAD
-> **SensAI is live at [https://sens-ai-harsh810.live/](https://sens-ai-harsh810.live/) – hosted on Vercel.**
 
-=======
->>>>>>> 70ad7131958a19c4ac18e6123bffa7f938fab122
----
+ **SensAI is live at [https://sens-ai-harsh810.live/](https://sens-ai-harsh810.live/) – hosted on Vercel.**
+
 
 ## 🙌 Credits
 
