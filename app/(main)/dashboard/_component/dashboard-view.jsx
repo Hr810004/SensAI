@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useTransition } from "react";
 import {
   BarChart,
   Bar,
@@ -16,6 +16,7 @@ import {
   TrendingUp,
   TrendingDown,
   Brain,
+  Loader2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -27,8 +28,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { refreshIndustryInsights } from "@/actions/dashboard";
 
-const DashboardView = ({ insights }) => {
+const DashboardView = ({ insights: initialInsights }) => {
+  const [insights, setInsights] = useState(initialInsights);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState(null);
+
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
     name: range.role,
@@ -77,7 +84,31 @@ const DashboardView = ({ insights }) => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <Badge variant="outline">Last updated: {lastUpdatedDate}</Badge>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setError(null);
+            startTransition(async () => {
+              try {
+                const updated = await refreshIndustryInsights();
+                setInsights(updated);
+              } catch (e) {
+                setError(e?.message || "Failed to refresh insights.");
+              }
+            });
+          }}
+          disabled={isPending}
+        >
+          {isPending ? (
+            <><Loader2 className="animate-spin mr-2 h-4 w-4" />Refreshing...</>
+          ) : (
+            <>Refresh Insights</>
+          )}
+        </Button>
       </div>
+      {error && (
+        <div className="text-red-600 text-center mb-2">{error}</div>
+      )}
 
       {/* Market Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

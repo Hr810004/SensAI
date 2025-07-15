@@ -6,13 +6,26 @@ import { redirect } from "next/navigation";
 export default async function DashboardPage() {
   const { isOnboarded } = await getUserOnboardingStatus();
 
-  // If not onboarded, redirect to onboarding page
-  // Skip this check if already on the onboarding page
   if (!isOnboarded) {
     redirect("/onboarding");
   }
 
-  const insights = await getIndustryInsights();
+  let insights, error;
+  try {
+    insights = await getIndustryInsights();
+  } catch (e) {
+    error = e?.message || "Failed to load industry insights.";
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto text-center py-20">
+        <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
+        <p className="text-lg text-muted-foreground">{error}</p>
+        <p className="mt-4">Try refreshing the page or contact support if the problem persists.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto">
