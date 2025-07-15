@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const [insights, setInsights] = useState(null);
+  const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -23,18 +24,31 @@ export default function DashboardPage() {
           router.replace("/onboarding");
           return;
         }
-        // Now fetch insights
-        fetch("/api/industry-insights")
+        // Fetch user profile
+        fetch("/api/user-profile")
           .then(async (res) => {
             if (!res.ok) throw new Error(await res.text());
             return res.json();
           })
-          .then((data) => {
-            setInsights(data);
-            setLoading(false);
+          .then((userData) => {
+            setUser(userData);
+            // Now fetch insights
+            fetch("/api/industry-insights")
+              .then(async (res) => {
+                if (!res.ok) throw new Error(await res.text());
+                return res.json();
+              })
+              .then((data) => {
+                setInsights(data);
+                setLoading(false);
+              })
+              .catch((err) => {
+                setError(err.message || "Failed to load industry insights.");
+                setLoading(false);
+              });
           })
           .catch((err) => {
-            setError(err.message || "Failed to load industry insights.");
+            setError(err.message || "Failed to load user profile.");
             setLoading(false);
           });
       })
@@ -57,7 +71,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto">
-      <DashboardView insights={insights} />
+      <DashboardView insights={insights} user={user} />
     </div>
   );
 }

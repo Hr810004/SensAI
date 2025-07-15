@@ -30,11 +30,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { refreshIndustryInsights } from "@/actions/dashboard";
+import { useEffect } from "react";
+import EditProfile from "./edit-profile";
 
-const DashboardView = ({ insights: initialInsights }) => {
+const DashboardView = ({ insights: initialInsights, user }) => {
   const [insights, setInsights] = useState(initialInsights);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(null);
+  const [skillGap, setSkillGap] = useState(null);
+  const [gapLoading, setGapLoading] = useState(false);
+  const [gapError, setGapError] = useState(null);
 
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
@@ -80,8 +85,42 @@ const DashboardView = ({ insights: initialInsights }) => {
     { addSuffix: true }
   );
 
+  // Skill Gap Analysis handler
+  const handleSkillGapAnalysis = async () => {
+    setGapLoading(true);
+    setGapError(null);
+    setSkillGap(null);
+    try {
+      // Placeholder for API call
+      // const res = await fetch("/api/skill-gap-analysis", { method: "POST", body: JSON.stringify({ skills: user.skills, targetRole: user.targetRole }) });
+      // const data = await res.json();
+      // setSkillGap(data);
+      setTimeout(() => {
+        setSkillGap({
+          gap: "You need to learn React, TypeScript, and System Design for your target role.",
+          recommendations: [
+            { title: "React for Beginners", url: "https://react.dev/learn" },
+            { title: "TypeScript Handbook", url: "https://www.typescriptlang.org/docs/" },
+            { title: "System Design Primer", url: "https://github.com/donnemartin/system-design-primer" },
+          ],
+        });
+        setGapLoading(false);
+      }, 1200);
+    } catch (e) {
+      setGapError("Failed to analyze skill gap.");
+      setGapLoading(false);
+    }
+  };
+
+  // Refresh user/profile after update
+  const handleProfileUpdated = () => {
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
+      {/* Edit Profile Section */}
+      <EditProfile user={user} onProfileUpdated={handleProfileUpdated} />
       <div className="flex justify-between items-center">
         <Badge variant="outline">Last updated: {lastUpdatedDate}</Badge>
         <Button
@@ -109,6 +148,37 @@ const DashboardView = ({ insights: initialInsights }) => {
       {error && (
         <div className="text-red-600 text-center mb-2">{error}</div>
       )}
+
+      {/* Skill Gap Analysis & Learning Path */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Skill Gap Analysis & Learning Path</CardTitle>
+          <CardDescription>
+            Target Role: <span className="font-semibold">{user?.targetRole || "Not set"}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleSkillGapAnalysis} disabled={gapLoading}>
+            {gapLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+            Analyze My Skill Gap
+          </Button>
+          {gapError && <div className="text-red-600 mt-2">{gapError}</div>}
+          {skillGap && (
+            <div className="mt-4">
+              <div className="mb-2 font-medium">AI Analysis:</div>
+              <div className="mb-2">{skillGap.gap}</div>
+              <div className="mb-2 font-medium">Recommended Learning Resources:</div>
+              <ul className="list-disc ml-6">
+                {skillGap.recommendations.map((rec) => (
+                  <li key={rec.url}>
+                    <a href={rec.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{rec.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Market Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

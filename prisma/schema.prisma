@@ -21,7 +21,7 @@ model User {
   // Profile fields
   bio           String?
   experience    Int?      // Years of experience
-  
+  targetRole    String?   // User's target job/role for skill gap analysis
   // Relations
   skills        String[]  // Array of skills
   assessments   Assessment[]

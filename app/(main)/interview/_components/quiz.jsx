@@ -16,11 +16,16 @@ import { generateQuiz, saveQuizResult } from "@/actions/interview";
 import QuizResult from "./quiz-result";
 import useFetch from "@/hooks/use-fetch";
 import { BarLoader } from "react-spinners";
+import { useRef } from "react";
 
 export default function Quiz() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [textAnswers, setTextAnswers] = useState([]); // For text/voice answers
+  const [feedback, setFeedback] = useState([]); // AI feedback per question
+  const [recording, setRecording] = useState(false);
+  const recognitionRef = useRef(null);
 
   const {
     loading: generatingQuiz,
@@ -38,6 +43,8 @@ export default function Quiz() {
   useEffect(() => {
     if (quizData) {
       setAnswers(new Array(quizData.length).fill(null));
+      setTextAnswers(new Array(quizData.length).fill(""));
+      setFeedback(new Array(quizData.length).fill(null));
     }
   }, [quizData]);
 
@@ -45,6 +52,12 @@ export default function Quiz() {
     const newAnswers = [...answers];
     newAnswers[currentQuestion] = answer;
     setAnswers(newAnswers);
+  };
+
+  const handleTextAnswer = (e) => {
+    const newTextAnswers = [...textAnswers];
+    newTextAnswers[currentQuestion] = e.target.value;
+    setTextAnswers(newTextAnswers);
   };
 
   const handleNext = () => {
@@ -82,6 +95,58 @@ export default function Quiz() {
     setShowExplanation(false);
     generateQuizFn();
     setResultData(null);
+  };
+
+  // Voice input logic
+  const startVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      toast.error("Voice recognition not supported in this browser.");
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const newTextAnswers = [...textAnswers];
+      newTextAnswers[currentQuestion] = transcript;
+      setTextAnswers(newTextAnswers);
+    };
+    recognition.onend = () => setRecording(false);
+    recognition.onerror = () => setRecording(false);
+    recognitionRef.current = recognition;
+    setRecording(true);
+    recognition.start();
+  };
+
+  const stopVoiceInput = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setRecording(false);
+    }
+  };
+
+  // Feedback handler (integrate with API)
+  const handleGetFeedback = async () => {
+    try {
+      const res = await fetch("/api/interview-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question.question,
+          answer: textAnswers[currentQuestion],
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const newFeedback = [...feedback];
+      newFeedback[currentQuestion] = data.feedback;
+      setFeedback(newFeedback);
+    } catch (e) {
+      toast.error(e.message || "Failed to get AI feedback");
+    }
   };
 
   if (generatingQuiz) {
@@ -129,6 +194,7 @@ export default function Quiz() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-lg font-medium">{question.question}</p>
+        {/* Multiple choice options */}
         <RadioGroup
           onValueChange={handleAnswer}
           value={answers[currentQuestion]}
@@ -141,6 +207,31 @@ export default function Quiz() {
             </div>
           ))}
         </RadioGroup>
+
+        {/* Voice/Text answer input */}
+        <div className="mt-4">
+          <Label htmlFor="text-answer">Your Answer (Text or Voice)</Label>
+          <textarea
+            id="text-answer"
+            className="w-full border rounded p-2 mt-1"
+            rows={3}
+            value={textAnswers[currentQuestion] || ""}
+            onChange={handleTextAnswer}
+            placeholder="Type or use the mic to answer..."
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <Button type="button" onClick={recording ? stopVoiceInput : startVoiceInput} variant={recording ? "destructive" : "secondary"}>
+              {recording ? "Stop Recording" : "Record Answer (Mic)"}
+            </Button>
+            <Button type="button" onClick={handleGetFeedback} disabled={!textAnswers[currentQuestion] || feedback[currentQuestion]}>Get AI Feedback</Button>
+          </div>
+          {feedback[currentQuestion] && (
+            <div className="mt-2 p-2 bg-muted rounded">
+              <p className="font-medium">AI Feedback:</p>
+              <p>{feedback[currentQuestion]}</p>
+            </div>
+          )}
+        </div>
 
         {showExplanation && (
           <div className="mt-4 p-4 bg-muted rounded-lg">

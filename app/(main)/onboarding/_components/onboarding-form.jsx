@@ -185,6 +185,18 @@ const OnboardingForm = ({ industries }) => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="targetRole">Target Role</Label>
+              <Input
+                id="targetRole"
+                placeholder="e.g., Frontend Developer, Data Scientist, Product Manager"
+                {...register("targetRole")}
+              />
+              {errors.targetRole && (
+                <p className="text-sm text-red-500">{errors.targetRole.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="bio">Professional Bio</Label>
               <Textarea
                 id="bio"

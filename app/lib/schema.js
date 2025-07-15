@@ -25,6 +25,7 @@ export const onboardingSchema = z.object({
           .filter(Boolean)
       : undefined
   ),
+  targetRole: z.string({ required_error: "Please enter your target role" }),
 });
 
 export const contactSchema = z.object({
