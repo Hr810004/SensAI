@@ -10,17 +10,6 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (window.sessionStorage.getItem("skipDashboardReload")) {
-        window.sessionStorage.removeItem("skipDashboardReload");
-      } else if (!window.sessionStorage.getItem("dashboardRedirected")) {
-        window.sessionStorage.setItem("dashboardRedirected", "true");
-        router.replace("/dashboard");
-        return;
-      } else {
-        window.sessionStorage.removeItem("dashboardRedirected");
-      }
-    }
     setLoading(true);
     setError(null);
     // First, check onboarding status
