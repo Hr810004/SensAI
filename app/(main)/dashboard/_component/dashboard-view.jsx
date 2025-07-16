@@ -226,6 +226,8 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
       fetchInsights();
       fetchLeetcodeStats(updatedUser.leetcodeUsername);
       // Gemini rec will auto-update due to useEffect
+      // Auto-trigger skill gap analysis after profile update
+      handleSkillGapAnalysis();
       toast.success("Profile updated!");
     } catch (err) {
       toast.error("Failed to refresh profile after update");
@@ -368,7 +370,12 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleSkillGapAnalysis} disabled={gapLoading} className="mt-2 bg-primary text-white font-semibold shadow">
+          <Button
+            variant="default"
+            className="mt-4"
+            onClick={handleSkillGapAnalysis}
+            disabled={gapLoading}
+          >
             {gapLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
             Analyze My Skill Gap
           </Button>

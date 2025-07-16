@@ -60,6 +60,17 @@ export default function DashboardPage() {
     fetchData();
   }, [pathname]);
 
+  // Refresh dashboard data when window/tab regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {
     return (

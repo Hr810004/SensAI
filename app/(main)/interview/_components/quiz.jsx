@@ -13,6 +13,7 @@ import { BarLoader } from "react-spinners";
 import PreQuizModal from "./pre-quiz-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import * as faceapi from 'face-api.js';
+import { Card } from "@/components/ui/card";
 
 let faceapiLoaded = false;
 
@@ -437,6 +438,26 @@ export default function Quiz() {
 
   return (
     <div className="mx-2">
+      {/* Video Preview - always visible when mediaStream is available and quiz is not finished */}
+      {mediaStream && !quizFinished && (
+        <div className="flex justify-center mb-4">
+          <video
+            ref={videoRef}
+            width={180}
+            height={135}
+            className="rounded border-2 border-primary bg-black shadow-lg"
+            style={{ display: "block" }}
+            muted
+            autoPlay
+          />
+        </div>
+      )}
+      {/* Fallback if webcam is not accessible */}
+      {!mediaStream && !quizFinished && (
+        <div className="mb-4 text-center text-red-600 font-semibold">
+          Webcam not accessible. Please enable your webcam for video preview and face detection.
+        </div>
+      )}
       {!faceDetected && (
         <div className="bg-red-100 text-red-700 p-2 rounded mb-2 font-semibold text-center">
           No face detected! Please ensure you are present for the quiz.
@@ -447,16 +468,6 @@ export default function Quiz() {
         <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-2 font-semibold text-center">
           ⚠️ Tab switched {tabSwitches} time{tabSwitches > 1 ? 's' : ''}. Please stay on this page.
         </div>
-      )}
-      {mediaStream && !quizFinished && (
-        <video
-          ref={videoRef}
-          width={120}
-          height={90}
-          className="rounded border mb-2"
-          style={{ display: "block" }}
-          muted
-        />
       )}
       <h2 className="text-2xl font-bold mb-4">Quiz for {company} - {role}</h2>
       <div className="flex gap-4 mb-4">
@@ -489,11 +500,17 @@ export default function Quiz() {
           </button>
         ))}
       </div>
-      <div className="p-4 bg-white rounded shadow mb-4">
+      <Card className="mb-4">
         <div className="font-medium mb-2">
           Question {currentQuestionIdx + 1} of {totalQuestions}
         </div>
-        <div className="mb-2">{currentQuestion?.question || "No questions found."}</div>
+        <div className="mb-2">
+          {currentQuestion?.question || "No questions found."}
+          {/* Render code snippet for DSA questions if present */}
+          {currentSection === "CS Fundamentals" && currentSubsection === "DSA" && currentQuestion?.code && (
+            <pre className="bg-muted rounded p-3 mt-3 overflow-x-auto text-sm"><code>{currentQuestion.code}</code></pre>
+          )}
+        </div>
         {inputType === "mcq" && (
           <RadioGroup
             value={mcqAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
@@ -546,7 +563,7 @@ export default function Quiz() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
       <div className="flex justify-between">
         <Button
           onClick={() => setCurrentQuestionIdx((i) => Math.max(0, i - 1))}
