@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import DashboardView from "./_component/dashboard-view";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -8,10 +8,9 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [viewKey, setViewKey] = useState(Date.now()); // Unique key for DashboardView
+  const [viewKey, setViewKey] = useState(Date.now());
   const router = useRouter();
   const pathname = usePathname();
-  const isFirstLoad = useRef(true);
 
   const fetchData = () => {
     setLoading(true);
@@ -59,18 +58,11 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    // Update viewKey on every navigation to /dashboard
-    setViewKey(Date.now());
-    fetchData();
-    // Cleanup: reset state on unmount
-    return () => {
-      setLoading(true);
-      setUser(null);
-      setInsights(null);
-    };
+    if (pathname === "/dashboard") {
+      setViewKey(Date.now());
+      fetchData();
+    }
   }, [pathname]);
-
-  // (No window/tab focus event listener)
 
   if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {
