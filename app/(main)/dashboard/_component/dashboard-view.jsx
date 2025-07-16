@@ -32,7 +32,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { refreshIndustryInsights } from "@/actions/dashboard";
-import { useEffect } from "react";
 import EditProfile from "./edit-profile";
 import { toast } from "react-hot-toast";
 
