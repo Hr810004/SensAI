@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import DashboardView from "./_component/dashboard-view";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function DashboardPage() {
   const [insights, setInsights] = useState(null);
@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [viewKey, setViewKey] = useState(Date.now());
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams(); // <-- Add this
 
   const fetchData = () => {
     console.log("[DashboardPage] fetchData called");
@@ -59,13 +60,14 @@ export default function DashboardPage() {
       });
   };
 
+  // NOTE: To force reload, navigate to /dashboard?refresh=Date.now()
   useEffect(() => {
-    console.log("[DashboardPage] useEffect triggered", pathname);
+    console.log("[DashboardPage] useEffect triggered", pathname, searchParams.toString());
     if (pathname === "/dashboard") {
       setViewKey(Date.now());
       fetchData();
     }
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   if (loading) {
     console.log("[DashboardPage] Loading...");
