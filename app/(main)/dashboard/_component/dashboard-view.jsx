@@ -61,6 +61,17 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const [resumeTargetRole, setResumeTargetRole] = useState("");
   const fileInputRef = useRef();
 
+  // Defensive check for missing data
+  if (!user || !insights) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <span className="text-lg text-muted-foreground">
+          No dashboard data available. Please complete your profile and try again.
+        </span>
+      </div>
+    );
+  }
+
   // Fetch LeetCode stats
   const fetchLeetcodeStats = useCallback((username) => {
     if (username) {
