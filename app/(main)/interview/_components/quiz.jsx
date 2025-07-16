@@ -331,14 +331,17 @@ export default function Quiz() {
     let interval;
     async function loadAndDetect() {
       if (!faceapiLoaded) {
-        await import("face-api.js");
+        const faceapi = await import("face-api.js");
+        window.faceapi = faceapi;
+        if (!window.faceapi) return;
         await window.faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights");
         faceapiLoaded = true;
       }
-      if (videoRef.current) {
+      if (videoRef.current && window.faceapi) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play();
         interval = setInterval(async () => {
+          if (!window.faceapi) return;
           const detections = await window.faceapi.detectAllFaces(
             videoRef.current,
             new window.faceapi.TinyFaceDetectorOptions()

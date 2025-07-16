@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -19,9 +19,12 @@ export default function PreQuizModal({ open, onStart }) {
 
   return (
     <Dialog open={open}>
-      <DialogContent className="max-w-md">
+      <DialogContent aria-describedby="pre-quiz-desc">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Prepare for Your Dream Job</DialogTitle>
+          <DialogDescription id="pre-quiz-desc">
+            Enter your target company and role to generate a personalized mock interview quiz.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 mt-2">
           <div>

@@ -174,9 +174,14 @@ ${experience.map(exp => `    \\resumeSubheading
 %-----------EDUCATION-----------
 \\section{Education}
   \\resumeSubHeadingListStart
-${education.map(edu => `    \\resumeSubheading
-      {${edu.organization.replace(/([%_#&{}$])/g, '\\$1')}}{${edu.endDate || ""}}
-      {${edu.title.replace(/([%_#&{}$])/g, '\\$1')}}{${edu.description.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}
+${education.map(edu => `    
+  \\resumeSubheading
+    {${edu.degree.replace(/([%_#&{}$])/g, '\\$1')}}
+    {${edu.startDate || ""} -- ${edu.current ? "Present" : edu.endDate || ""}}
+    {${edu.institution.replace(/([%_#&{}$])/g, '\\$1')}}
+    {${[edu.fieldOfStudy, edu.gpa ? `GPA: ${edu.gpa}` : null].filter(Boolean).join(edu.fieldOfStudy && edu.gpa ? ' (': '') + (edu.fieldOfStudy && edu.gpa ? ')' : '')}}
+  ${edu.description ? `\\resumeItemListStart\\n    \\resumeItem{${edu.description.replace(/([%_#&{}$])/g, '\\$1')}}\\n  \\resumeItemListEnd` : ""}`
+).join('\n')}
   \\resumeSubHeadingListEnd`
       : "";
 

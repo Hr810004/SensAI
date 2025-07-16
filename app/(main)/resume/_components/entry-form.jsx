@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { entrySchema } from "@/app/lib/schema";
+import { entrySchema, educationEntrySchema } from "@/app/lib/schema";
 import { Sparkles, PlusCircle, X, Pencil, Save, Loader2 } from "lucide-react";
 import { improveWithAI } from "@/actions/resume";
 import { toast } from "sonner";
@@ -30,6 +30,8 @@ const formatDisplayDate = (dateString) => {
 export function EntryForm({ type, entries, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
 
+  const isEducation = type === "Education";
+
   const {
     register,
     handleSubmit: handleValidation,
@@ -38,16 +40,26 @@ export function EntryForm({ type, entries, onChange }) {
     watch,
     setValue,
   } = useForm({
-    resolver: zodResolver(entrySchema),
-    defaultValues: {
-      title: "",
-      organization: "",
-      startDate: "",
-      endDate: "",
-      description: "",
-      current: false,
-      links: [], // Add links array for projects
-    },
+    resolver: zodResolver(isEducation ? educationEntrySchema : entrySchema),
+    defaultValues: isEducation
+      ? {
+          degree: "",
+          institution: "",
+          fieldOfStudy: "",
+          startDate: "",
+          endDate: "",
+          current: false,
+          description: "",
+        }
+      : {
+          title: "",
+          organization: "",
+          startDate: "",
+          endDate: "",
+          description: "",
+          current: false,
+          links: [],
+        },
   });
 
   const current = watch("current");
@@ -130,7 +142,9 @@ export function EntryForm({ type, entries, onChange }) {
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                {item.title} @ {item.organization}
+                {isEducation
+                  ? `${item.degree} @ ${item.institution}`
+                  : `${item.title} @ ${item.organization}`}
               </CardTitle>
               <Button
                 variant="outline"
@@ -147,7 +161,13 @@ export function EntryForm({ type, entries, onChange }) {
                   ? `${item.startDate} - Present`
                   : `${item.startDate} - ${item.endDate}`}
               </p>
-              {type === "Project" && item.links && item.links.length > 0 && (
+              {isEducation && item.fieldOfStudy && (
+                <p className="text-sm mt-1">Field: {item.fieldOfStudy}</p>
+              )}
+              {isEducation && item.gpa && (
+                <p className="text-sm mt-1">GPA: {item.gpa}</p>
+              )}
+              {!isEducation && type === "Project" && item.links && item.links.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm font-medium">Links:</p>
                   <div className="flex flex-wrap gap-2 mt-1">
@@ -173,148 +193,245 @@ export function EntryForm({ type, entries, onChange }) {
             <CardTitle>Add {type}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Input
-                  placeholder="Title/Position"
-                  {...register("title")}
-                  error={errors.title}
-                />
-                {errors.title && (
-                  <p className="text-sm text-red-500">{errors.title.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Organization/Company"
-                  {...register("organization")}
-                  error={errors.organization}
-                />
-                {errors.organization && (
-                  <p className="text-sm text-red-500">
-                    {errors.organization.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Input
-                  type="month"
-                  {...register("startDate")}
-                  error={errors.startDate}
-                />
-                {errors.startDate && (
-                  <p className="text-sm text-red-500">
-                    {errors.startDate.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Input
-                  type="month"
-                  {...register("endDate")}
-                  disabled={current}
-                  error={errors.endDate}
-                />
-                {errors.endDate && (
-                  <p className="text-sm text-red-500">
-                    {errors.endDate.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="current"
-                {...register("current")}
-                onChange={(e) => {
-                  setValue("current", e.target.checked);
-                  if (e.target.checked) {
-                    setValue("endDate", "");
-                  }
-                }}
-              />
-              <label htmlFor="current">Current {type}</label>
-            </div>
-
-            {/* Links section for projects */}
-            {type === "Project" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium">Links</h4>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addLink}
-                  >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Add Link
-                  </Button>
-                </div>
-                {links.map((link, linkIndex) => (
-                  <div key={linkIndex} className="flex gap-2 items-center">
+            {isEducation ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Input
-                      placeholder="Label (e.g., GitHub, Demo)"
-                      value={link.label || ""}
-                      onChange={(e) => updateLink(linkIndex, "label", e.target.value)}
-                      className="flex-1"
+                      placeholder="Degree (e.g., B.Tech, M.Sc)"
+                      {...register("degree")}
+                      error={errors.degree}
                     />
-                    <Input
-                      placeholder="URL"
-                      value={link.url || ""}
-                      onChange={(e) => updateLink(linkIndex, "url", e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeLink(linkIndex)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {errors.degree && (
+                      <p className="text-sm text-red-500">{errors.degree.message}</p>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Institution/University"
+                      {...register("institution")}
+                      error={errors.institution}
+                    />
+                    {errors.institution && (
+                      <p className="text-sm text-red-500">{errors.institution.message}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Field of Study (optional)"
+                    {...register("fieldOfStudy")}
+                    error={errors.fieldOfStudy}
+                  />
+                  {errors.fieldOfStudy && (
+                    <p className="text-sm text-red-500">{errors.fieldOfStudy.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="GPA (optional, e.g., 9.2/10 or 3.8/4)"
+                    {...register("gpa")}
+                    error={errors.gpa}
+                  />
+                  {errors.gpa && (
+                    <p className="text-sm text-red-500">{errors.gpa.message}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Input
+                      type="month"
+                      {...register("startDate")}
+                      error={errors.startDate}
+                    />
+                    {errors.startDate && (
+                      <p className="text-sm text-red-500">{errors.startDate.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      type="month"
+                      {...register("endDate")}
+                      disabled={watch("current")}
+                      error={errors.endDate}
+                    />
+                    {errors.endDate && (
+                      <p className="text-sm text-red-500">{errors.endDate.message}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="current"
+                    {...register("current")}
+                    onChange={(e) => {
+                      setValue("current", e.target.checked);
+                      if (e.target.checked) {
+                        setValue("endDate", "");
+                      }
+                    }}
+                  />
+                  <label htmlFor="current">Current Education</label>
+                </div>
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Description (optional)"
+                    className="h-32"
+                    {...register("description")}
+                    error={errors.description}
+                  />
+                  {errors.description && (
+                    <p className="text-sm text-red-500">{errors.description.message}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Title/Position"
+                      {...register("title")}
+                      error={errors.title}
+                    />
+                    {errors.title && (
+                      <p className="text-sm text-red-500">{errors.title.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Organization/Company"
+                      {...register("organization")}
+                      error={errors.organization}
+                    />
+                    {errors.organization && (
+                      <p className="text-sm text-red-500">
+                        {errors.organization.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Textarea
-                placeholder={`Description of your ${type.toLowerCase()}`}
-                className="h-32"
-                {...register("description")}
-                error={errors.description}
-              />
-              {errors.description && (
-                <p className="text-sm text-red-500">
-                  {errors.description.message}
-                </p>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleImproveDescription}
-              disabled={isImproving || !watch("description")}
-            >
-              {isImproving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Improving...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Improve with AI
-                </>
-              )}
-            </Button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Input
+                      type="month"
+                      {...register("startDate")}
+                      error={errors.startDate}
+                    />
+                    {errors.startDate && (
+                      <p className="text-sm text-red-500">
+                        {errors.startDate.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      type="month"
+                      {...register("endDate")}
+                      disabled={current}
+                      error={errors.endDate}
+                    />
+                    {errors.endDate && (
+                      <p className="text-sm text-red-500">
+                        {errors.endDate.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="current"
+                    {...register("current")}
+                    onChange={(e) => {
+                      setValue("current", e.target.checked);
+                      if (e.target.checked) {
+                        setValue("endDate", "");
+                      }
+                    }}
+                  />
+                  <label htmlFor="current">Current {type}</label>
+                </div>
+
+                {/* Links section for projects */}
+                {type === "Project" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium">Links</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addLink}
+                      >
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        Add Link
+                      </Button>
+                    </div>
+                    {links.map((link, linkIndex) => (
+                      <div key={linkIndex} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Label (e.g., GitHub, Demo)"
+                          value={link.label || ""}
+                          onChange={(e) => updateLink(linkIndex, "label", e.target.value)}
+                          className="flex-1"
+                        />
+                        <Input
+                          placeholder="URL"
+                          value={link.url || ""}
+                          onChange={(e) => updateLink(linkIndex, "url", e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => removeLink(linkIndex)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder={`Description of your ${type.toLowerCase()}`}
+                    className="h-32"
+                    {...register("description")}
+                    error={errors.description}
+                  />
+                  {errors.description && (
+                    <p className="text-sm text-red-500">
+                      {errors.description.message}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleImproveDescription}
+                  disabled={isImproving || !watch("description")}
+                >
+                  {isImproving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Improving...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Improve with AI
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </CardContent>
           <CardFooter className="flex justify-end space-x-2">
             <Button

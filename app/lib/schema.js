@@ -72,13 +72,25 @@ export const achievementSchema = z.object({
   url: z.string().url("Invalid URL").optional(),
 });
 
+// Schema for education entries (distinct from experience)
+export const educationEntrySchema = z.object({
+  degree: z.string().min(1, "Degree is required"),
+  institution: z.string().min(1, "Institution/University is required"),
+  fieldOfStudy: z.string().optional(),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().optional(),
+  current: z.boolean().default(false),
+  description: z.string().optional(),
+  gpa: z.string().optional(), // GPA (optional)
+});
+
 export const resumeSchema = z.object({
   contactInfo: contactSchema,
   skills: z.string().min(1, "Skills are required"),
   experience: z.array(entrySchema),
-  education: z.array(entrySchema),
+  education: z.array(educationEntrySchema), 
   projects: z.array(entrySchema),
-  achievements: z.array(achievementSchema).optional(), // Optional achievements
+  achievements: z.array(achievementSchema).optional(),
 });
 
 export const coverLetterSchema = z.object({

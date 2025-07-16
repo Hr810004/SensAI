@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -34,9 +34,11 @@ import { Button } from "@/components/ui/button";
 import { refreshIndustryInsights } from "@/actions/dashboard";
 import { useEffect } from "react";
 import EditProfile from "./edit-profile";
+import { toast } from "react-hot-toast";
 
-const DashboardView = ({ insights: initialInsights, user }) => {
+const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const [insights, setInsights] = useState(initialInsights);
+  const [user, setUser] = useState(initialUser);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(null);
   const [skillGap, setSkillGap] = useState(null);
@@ -49,29 +51,33 @@ const DashboardView = ({ insights: initialInsights, user }) => {
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [geminiError, setGeminiError] = useState(null);
 
-  useEffect(() => {
-    if (user.leetcodeUsername) {
+  // Fetch LeetCode stats
+  const fetchLeetcodeStats = useCallback((username) => {
+    if (username) {
       setLeetcodeLoading(true);
       setLeetcodeError(null);
       setLeetcodeStats(null);
-      fetch(`/api/leetcode-stats?username=${user.leetcodeUsername}`)
+      fetch(`/api/leetcode-stats?username=${username}&topics=true`)
         .then(async (res) => {
           if (!res.ok) throw new Error(await res.text());
           return res.json();
         })
         .then((data) => {
-          setLeetcodeStats(data);
+          setLeetcodeStats(data.topics || []);
           setLeetcodeLoading(false);
         })
         .catch((err) => {
           setLeetcodeError(err.message || "Failed to fetch LeetCode stats");
           setLeetcodeLoading(false);
         });
+    } else {
+      setLeetcodeStats(null);
     }
-  }, [user.leetcodeUsername]);
+  }, []);
 
-  useEffect(() => {
-    if (leetcodeStats && user.targetRole) {
+  // Fetch Gemini recommendations
+  const fetchGeminiRec = useCallback((targetRole, leetcodeTopics) => {
+    if (targetRole) {
       setGeminiLoading(true);
       setGeminiError(null);
       setGeminiRec(null);
@@ -79,8 +85,8 @@ const DashboardView = ({ insights: initialInsights, user }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          leetcodeStats,
-          targetRole: user.targetRole,
+          targetRole,
+          ...(leetcodeTopics ? { leetcodeTopics } : {}),
         }),
       })
         .then(async (res) => {
@@ -96,7 +102,27 @@ const DashboardView = ({ insights: initialInsights, user }) => {
           setGeminiLoading(false);
         });
     }
-  }, [leetcodeStats, user.targetRole]);
+  }, []);
+
+  // Fetch insights
+  const fetchInsights = useCallback(() => {
+    fetch("/api/industry-insights")
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      })
+      .then((data) => setInsights(data))
+      .catch((err) => setError(err.message || "Failed to load industry insights."));
+  }, []);
+
+  // On mount and when user changes, fetch LeetCode stats and Gemini recs
+  useEffect(() => {
+    fetchLeetcodeStats(user.leetcodeUsername);
+  }, [user.leetcodeUsername, fetchLeetcodeStats]);
+
+  useEffect(() => {
+    fetchGeminiRec(user.targetRole, leetcodeStats);
+  }, [user.targetRole, leetcodeStats, fetchGeminiRec]);
 
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
@@ -155,6 +181,7 @@ const DashboardView = ({ insights: initialInsights, user }) => {
           skillGap: true,
           skills: user.skills,
           targetRole: user.targetRole,
+          ...(leetcodeStats ? { leetcodeTopics: leetcodeStats } : {}),
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -168,8 +195,20 @@ const DashboardView = ({ insights: initialInsights, user }) => {
   };
 
   // Refresh user/profile after update
-  const handleProfileUpdated = () => {
-    window.location.reload();
+  const handleProfileUpdated = async () => {
+    // Fetch the latest user profile from the API
+    try {
+      const res = await fetch("/api/user-profile");
+      if (!res.ok) throw new Error(await res.text());
+      const updatedUser = await res.json();
+      setUser(updatedUser);
+      fetchInsights();
+      fetchLeetcodeStats(updatedUser.leetcodeUsername);
+      // Gemini rec will auto-update due to useEffect
+      toast.success("Profile updated!");
+    } catch (err) {
+      toast.error("Failed to refresh profile after update");
+    }
   };
 
   return (
@@ -187,7 +226,7 @@ const DashboardView = ({ insights: initialInsights, user }) => {
                 const updated = await refreshIndustryInsights();
                 setInsights(updated);
               } catch (e) {
-                setError(e?.message || "Failed to refresh insights.");
+                setError("Failed to refresh industry insights.");
               }
             });
           }}
@@ -278,12 +317,36 @@ const DashboardView = ({ insights: initialInsights, user }) => {
             {leetcodeStats && (
               <div className="space-y-2">
                 <div className="text-lg font-medium">
-                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
+                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.reduce((sum, topic) => sum + topic.totalSolved, 0)}</span> out of <span className="font-semibold">{leetcodeStats.reduce((sum, topic) => sum + topic.totalQuestions, 0)}</span>
                 </div>
                 <div className="flex gap-4 text-sm text-muted-foreground">
-                  <span>Easy: {leetcodeStats.easySolved}</span>
-                  <span>Medium: {leetcodeStats.mediumSolved}</span>
-                  <span>Hard: {leetcodeStats.hardSolved}</span>
+                  <span>Easy: {leetcodeStats.reduce((sum, topic) => sum + topic.easySolved, 0)}</span>
+                  <span>Medium: {leetcodeStats.reduce((sum, topic) => sum + topic.mediumSolved, 0)}</span>
+                  <span>Hard: {leetcodeStats.reduce((sum, topic) => sum + topic.hardSolved, 0)}</span>
+                </div>
+              </div>
+            )}
+            {/* LeetCode Topic Breakdown Section */}
+            {leetcodeStats && leetcodeStats.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-2 text-indigo-700 flex items-center gap-2">
+                  <BookOpenIcon className="h-5 w-5" />
+                  LeetCode Topic-wise Progress
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={leetcodeStats}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="tagName" tick={{ fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={80} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="problemsSolved" fill="#6366f1" />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <span>Each bar shows how many problems you have solved in that topic.</span>
                 </div>
               </div>
             )}
