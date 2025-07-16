@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const pathname = usePathname();
 
   const fetchData = () => {
+    console.log("[DashboardPage] fetchData called");
     setLoading(true);
     setError(null);
     fetch("/api/user-onboarding-status")
@@ -40,6 +41,7 @@ export default function DashboardPage() {
               .then((data) => {
                 setInsights(data);
                 setLoading(false);
+                console.log("[DashboardPage] Data loaded", { user: userData, insights: data });
               })
               .catch((err) => {
                 setError(err.message || "Failed to load industry insights.");
@@ -58,14 +60,19 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    console.log("[DashboardPage] useEffect triggered", pathname);
     if (pathname === "/dashboard") {
       setViewKey(Date.now());
       fetchData();
     }
   }, [pathname]);
 
-  if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
+  if (loading) {
+    console.log("[DashboardPage] Loading...");
+    return <div className="container mx-auto text-center py-20">Loading...</div>;
+  }
   if (error) {
+    console.log("[DashboardPage] Error:", error);
     return (
       <div className="container mx-auto text-center py-20">
         <h2 className="text-2xl font-bold mb-4 text-red-600">Error</h2>
@@ -75,6 +82,7 @@ export default function DashboardPage() {
     );
   }
 
+  console.log("[DashboardPage] Rendering DashboardView", { user, insights, viewKey });
   return (
     <div className="container mx-auto">
       <DashboardView key={viewKey} insights={insights} user={user} />
