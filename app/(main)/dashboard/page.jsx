@@ -58,12 +58,10 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (isFirstLoad.current) {
-      isFirstLoad.current = false;
-      return;
-    }
     fetchData();
   }, [pathname]);
+
+  // (No window/tab focus event listener)
 
   if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {
@@ -78,9 +76,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto">
-      {insights && user ? (
-        <DashboardView key={pathname} insights={insights} user={user} />
-      ) : null}
+      <DashboardView key={pathname} insights={insights} user={user} />
     </div>
   );
 }
