@@ -57,6 +57,8 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const [resumeAnalysis, setResumeAnalysis] = useState(null);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeError, setResumeError] = useState(null);
+  const [resumeTargetCompany, setResumeTargetCompany] = useState("");
+  const [resumeTargetRole, setResumeTargetRole] = useState("");
   const fileInputRef = useRef();
 
   // Fetch LeetCode stats
@@ -230,23 +232,8 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     }
   };
 
-  // Placeholder for PDF/DOCX text extraction
-  const extractTextFromFile = async (file) => {
-    if (file.type !== 'application/pdf') throw new Error('Only PDF files are supported.');
-    if (typeof window === 'undefined') throw new Error('PDF parsing only supported in browser.');
-    const pdfjsLib = await import('pdfjs-dist/build/pdf');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map(item => item.str).join(' ') + '\n';
-    }
-    return text;
-  };
-
+  // Remove all pdfjs-dist imports and PDF parsing logic
+  // Update handleResumeUpload to send the file directly to the backend
   const handleResumeUpload = async (e) => {
     const file = e.target.files[0];
     setResumeFile(file);
@@ -255,43 +242,32 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     if (file) {
       setResumeLoading(true);
       try {
-        const text = await extractTextFromFile(file);
-        setResumeText(text);
+        // Send the file as FormData to the backend
+        const formData = new FormData();
+        formData.append('resume', file);
+        if (resumeTargetCompany) {
+          formData.append('targetCompany', resumeTargetCompany);
+        }
+        if (resumeTargetRole) {
+          formData.append('targetRole', resumeTargetRole);
+        }
+        const res = await fetch('/api/gemini-recommend', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setResumeAnalysis(data.gap || data.recommendation);
         setResumeLoading(false);
-        toast.success("Resume uploaded! Ready for analysis.");
+        toast.success('Resume uploaded and analyzed!');
       } catch (err) {
-        setResumeError("Failed to extract text from resume.");
+        setResumeError('Failed to analyze resume.');
         setResumeLoading(false);
       }
     }
   };
-
-  const handleAnalyzeResume = async () => {
-    if (!resumeText) return;
-    setResumeLoading(true);
-    setResumeAnalysis(null);
-    setResumeError(null);
-    try {
-      const res = await fetch("/api/gemini-recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          skillGap: true,
-          skills: user.skills,
-          targetRole: user.targetRole,
-          leetcodeStats,
-          resumeText,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setResumeAnalysis(data.gap || data.recommendation);
-      setResumeLoading(false);
-    } catch (e) {
-      setResumeError("Failed to analyze resume.");
-      setResumeLoading(false);
-    }
-  };
+  // Remove extractTextFromFile and handleAnalyzeResume
+  // Update the UI to only show the upload button and analysis result
 
   return (
     <div className="space-y-6">
@@ -325,66 +301,88 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
         <div className="text-red-600 text-center mb-2">{error}</div>
       )}
 
-      {/* Skill Gap Analysis & Learning Path */}
-      <Card className="mb-6 shadow-lg border-2 border-primary/30 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-lg p-6">
-          <div className="flex items-center gap-3">
-            <Brain className="h-8 w-8 text-white drop-shadow-lg" />
-            <div>
-              <CardTitle className="text-white text-2xl font-bold drop-shadow">Skill Gap Analysis & Learning Path</CardTitle>
-              <CardDescription className="text-blue-100 mt-1">
-                Target Role: {user?.targetRole ? (
-                  <Badge className="ml-2 bg-white/20 text-white border-white/30 px-3 py-1 text-base font-semibold">{user.targetRole}</Badge>
-                ) : (
-                  <span className="italic text-white/70">Not set</span>
-                )}
-              </CardDescription>
-            </div>
-          </div>
-          <Button onClick={handleSkillGapAnalysis} disabled={gapLoading} className="mt-4 md:mt-0 bg-white text-blue-700 hover:bg-blue-100 font-semibold shadow">
-            {gapLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-            Analyze My Skill Gap
-          </Button>
+      {/* Resume Upload and Analysis Section (moved up) */}
+      <Card className="bg-muted/80 border-none shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-primary">Upload Resume for AI Analysis</CardTitle>
+          <CardDescription className="text-muted-foreground">Upload your resume (PDF only) to get a personalized skill gap analysis based on your actual experience!</CardDescription>
         </CardHeader>
         <CardContent>
-          {gapError && <div className="text-red-600 mt-2">{gapError}</div>}
-          {skillGap && (
-            <div className="mt-6 animate-fade-in">
-              <div className="flex items-center gap-2 mb-3">
-                <InfoIcon className="h-5 w-5 text-blue-500" />
-                <span className="font-semibold text-blue-700">AI Analysis</span>
-              </div>
-              <div className="bg-blue-100 border-l-4 border-blue-400 rounded-r-lg p-4 mb-4 text-blue-900 shadow-sm">
-                {skillGap.gap}
-              </div>
-              <div className="mb-2 font-medium text-indigo-700 flex items-center gap-2">
-                <BookOpenIcon className="h-5 w-5" />
-                Recommended Learning Resources:
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {skillGap.recommendations.map((rec) => (
-                  <a
-                    key={rec.url}
-                    href={rec.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block group bg-white border border-indigo-200 rounded-lg p-4 shadow hover:shadow-lg transition-all duration-200 hover:bg-indigo-50"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <BookOpenIcon className="h-5 w-5 text-indigo-500 group-hover:text-indigo-700 transition" />
-                      <span className="font-semibold text-indigo-800 group-hover:text-indigo-900">{rec.title}</span>
-                      <svg className="h-4 w-4 text-indigo-400 ml-auto group-hover:text-indigo-700 transition" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                    </div>
-                    <div className="text-xs text-indigo-500 truncate">{rec.url}</div>
-                  </a>
-                ))}
-              </div>
+          <div className="mb-4">
+            <label htmlFor="resume-target-company" className="block text-sm font-medium text-primary mb-1">Target Company (optional)</label>
+            <input
+              id="resume-target-company"
+              type="text"
+              value={resumeTargetCompany}
+              onChange={e => setResumeTargetCompany(e.target.value)}
+              placeholder="e.g. Google, Microsoft, etc."
+              className="w-full px-3 py-2 border rounded-md bg-background text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="resume-target-role" className="block text-sm font-medium text-primary mb-1">Target Role (optional)</label>
+            <input
+              id="resume-target-role"
+              type="text"
+              value={resumeTargetRole}
+              onChange={e => setResumeTargetRole(e.target.value)}
+              placeholder="e.g. Software Engineer, Data Scientist, etc."
+              className="w-full px-3 py-2 border rounded-md bg-background text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <input
+            type="file"
+            accept=".pdf"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleResumeUpload}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            disabled={resumeLoading}
+            className="mb-2"
+          >
+            {resumeLoading ? 'Uploading...' : resumeFile ? 'Change Resume' : 'Upload Resume (PDF)'}
+          </Button>
+          {resumeError && <div className="text-red-500 mt-2">{resumeError}</div>}
+          {resumeAnalysis && (
+            <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
+              <div className="font-semibold text-primary mb-2">AI Resume Skill Gap Analysis</div>
+              <ReactMarkdown className="prose prose-invert max-w-none">{resumeAnalysis}</ReactMarkdown>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* LeetCode Progress Section */}
+      {/* Skill Gap Analysis & Learning Path (styled like Resume Upload) */}
+      <Card className="bg-muted/80 border-none shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-primary">Skill Gap Analysis & Learning Path</CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Target Role: {user?.targetRole ? (
+              <Badge className="ml-2 bg-white/20 text-white border-white/30 px-3 py-1 text-base font-semibold">{user.targetRole}</Badge>
+            ) : (
+              <span className="italic text-white/70">Not set</span>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleSkillGapAnalysis} disabled={gapLoading} className="mt-2 bg-primary text-white font-semibold shadow">
+            {gapLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+            Analyze My Skill Gap
+          </Button>
+          {gapError && <div className="text-red-600 mt-2">{gapError}</div>}
+          {skillGap && (
+            <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
+              <div className="font-semibold text-primary mb-2">AI Skill Gap Analysis</div>
+              <ReactMarkdown className="prose prose-invert max-w-none">{skillGap.gap}</ReactMarkdown>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* LeetCode Progress Section (moved down) */}
       <Card className="bg-muted/80 border-none shadow-lg">
         <CardHeader>
           <CardTitle className="text-xl font-bold text-primary">LeetCode Progress</CardTitle>
@@ -434,47 +432,6 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
               ) : (
                 <div className="text-muted-foreground">Loading recommendations...</div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      {/* Resume Upload and Analysis Section */}
-      <Card className="bg-muted/80 border-none shadow-lg mt-6">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-primary">Upload Resume for AI Analysis</CardTitle>
-          <CardDescription className="text-muted-foreground">Upload your resume (PDF only) to get a personalized skill gap analysis based on your actual experience!</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <input
-            type="file"
-            accept=".pdf"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleResumeUpload}
-          />
-          <Button
-            variant="secondary"
-            onClick={() => fileInputRef.current && fileInputRef.current.click()}
-            disabled={resumeLoading}
-            className="mb-2"
-          >
-            {resumeLoading ? 'Uploading...' : resumeFile ? 'Change Resume' : 'Upload Resume (PDF)'}
-          </Button>
-          {resumeFile && !resumeLoading && (
-            <Button
-              variant="default"
-              onClick={handleAnalyzeResume}
-              className="ml-2"
-              disabled={resumeLoading || !resumeText}
-            >
-              {resumeLoading ? 'Analyzing...' : 'Analyze Resume'}
-            </Button>
-          )}
-          {resumeError && <div className="text-red-500 mt-2">{resumeError}</div>}
-          {resumeAnalysis && (
-            <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
-              <div className="font-semibold text-primary mb-2">AI Resume Skill Gap Analysis</div>
-              <ReactMarkdown className="prose prose-invert max-w-none">{resumeAnalysis}</ReactMarkdown>
             </div>
           )}
         </CardContent>

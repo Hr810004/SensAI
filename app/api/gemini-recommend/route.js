@@ -2,6 +2,49 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req) {
+  // Check if the request is multipart/form-data (file upload)
+  const contentType = req.headers.get('content-type') || '';
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await req.formData();
+    const file = formData.get('resume');
+    const targetCompany = formData.get('targetCompany');
+    const targetRole = formData.get('targetRole');
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+    try {
+      // Read the file as a buffer
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      // Send the file to Gemini for analysis
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      // Gemini's API expects a File object, so we create one
+      const geminiFile = new File([buffer], file.name, { type: file.type });
+      // Compose the prompt for resume analysis
+      let prompt = `You are an expert, friendly career coach AI. Analyze the user's resume (PDF attached)`;
+      if (targetCompany && targetRole) {
+        prompt += ` for a role at **${targetCompany}** as **${targetRole}**`;
+      } else if (targetCompany) {
+        prompt += ` for a role at **${targetCompany}**`;
+      } else if (targetRole) {
+        prompt += ` for the role of **${targetRole}**`;
+      } else {
+        prompt += ' for the role they are targeting.';
+      }
+      prompt += `\n\n---\n\n**Instructions:**\n- Start with a short, friendly greeting.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's experience, skills, and education from the resume.\n- Identify the most important skill gaps for their target company and role.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
+      // Send the file and prompt to Gemini
+      const result = await model.generateContent([
+        { text: prompt },
+        { file: geminiFile }
+      ]);
+      const response = await result.response;
+      return NextResponse.json({ gap: response.text().trim() });
+    } catch (e) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
+
   const body = await req.json();
 
   // Handle resume LaTeX generation
