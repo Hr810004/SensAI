@@ -3,33 +3,29 @@
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  AlertTriangle,
-  Download,
-  Edit,
-  Loader2,
-  Monitor,
-  Save,
-} from "lucide-react";
+import { Download, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import MDEditor from "@uiw/react-md-editor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { saveResume } from "@/actions/resume";
-import { EntryForm } from "./entry-form";
+import { saveResume, getResume } from "@/actions/resume";
+import { EntryForm, AchievementForm } from "./entry-form";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
-import { entriesToMarkdown } from "@/app/lib/helper";
 import { resumeSchema } from "@/app/lib/schema";
-import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
 export default function ResumeBuilder({ initialContent }) {
-  const [activeTab, setActiveTab] = useState("edit");
+  const [activeTab, setActiveTab] = useState("form");
   const [previewContent, setPreviewContent] = useState(initialContent);
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
+  const [latexCode, setLatexCode] = useState("");
+  const [achievements, setAchievements] = useState([]);
+  const [geminiPrompt, setGeminiPrompt] = useState("");
+  const [isGeminiLoading, setIsGeminiLoading] = useState(false);
+  const [previousLatexCode, setPreviousLatexCode] = useState(""); // Store previous version
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     control,
@@ -37,15 +33,16 @@ export default function ResumeBuilder({ initialContent }) {
     handleSubmit,
     watch,
     formState: { errors },
+    reset,
   } = useForm({
     resolver: zodResolver(resumeSchema),
     defaultValues: {
       contactInfo: {},
-      summary: "",
       skills: "",
       experience: [],
       education: [],
       projects: [],
+      achievements: [],
     },
   });
 
@@ -55,6 +52,32 @@ export default function ResumeBuilder({ initialContent }) {
     data: saveResult,
     error: saveError,
   } = useFetch(saveResume);
+
+  // Load existing resume data
+  useEffect(() => {
+    const loadResume = async () => {
+      try {
+        const resume = await getResume();
+        if (resume) {
+          // Reset form with existing data
+          reset({
+            contactInfo: resume.contactInfo || {},
+            skills: resume.skills || "",
+            experience: resume.experience || [],
+            education: resume.education || [],
+            projects: resume.projects || [],
+          });
+          setAchievements(resume.achievements || []);
+        }
+      } catch (error) {
+        console.error("Error loading resume:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadResume();
+  }, [reset]);
 
   // Watch form fields for preview updates
   const formValues = watch();
@@ -81,6 +104,252 @@ export default function ResumeBuilder({ initialContent }) {
     }
   }, [saveResult, saveError, isSaving]);
 
+  // Helper: Convert form data to LaTeX (updated with proper template and links)
+  const formToLatex = (formData) => {
+    const { contactInfo = {}, skills = "", experience = [], education = [], projects = [], achievements = [] } = formData;
+    
+    // Generate LaTeX for achievements with optional links
+    const achievementsLatex = achievements.length > 0
+      ? `
+%-----------ACHIEVEMENTS-----------
+\\section{Achievements}
+\\begin{itemize}[leftmargin=0.15in, label={}, itemsep=2pt, topsep=0pt]
+  \\item[] \\small{
+    ${achievements.map(achievement => {
+      const text = achievement.text.replace(/([%_#&{}$])/g, '\\$1');
+      if (achievement.url) {
+        return `\\href{${achievement.url}}{${text}}`;
+      }
+      return text;
+    }).join(" \\\\\n    ")}
+  }
+\\end{itemize}`
+      : "";
+
+    // Generate LaTeX for projects with multiple links
+    const projectsLatex = projects.length > 0
+      ? `
+%-----------PROJECTS-----------
+\\section{Personal Projects}
+  \\resumeSubHeadingListStart
+${projects.map(project => {
+  const title = project.title.replace(/([%_#&{}$])/g, '\\$1');
+  const techStack = project.organization ? `\\emph{${project.organization.replace(/([%_#&{}$])/g, '\\$1')}}` : "";
+  const date = project.startDate || "";
+  
+  // Generate links for the project
+  const linksLatex = project.links && project.links.length > 0
+    ? project.links.map(link => `\\href{${link.url}}{\\underline{${link.label}}}`).join(' $|$ ')
+    : "";
+
+  const projectLinks = linksLatex ? ` $|$ ${linksLatex}` : "";
+  
+  return `   \\resumeProjectHeading
+      {\\textbf{${title}} $|$ ${techStack}${projectLinks}}{${date}}
+  \\resumeItemListStart
+     \\resumeItem{${project.description.replace(/([%_#&{}$])/g, '\\$1')}}
+  \\resumeItemListEnd`;
+}).join('\n')}
+  \\resumeSubHeadingListEnd`
+      : "";
+
+    // Generate LaTeX for experience
+    const experienceLatex = experience.length > 0
+      ? `
+%-----------EXPERIENCE-----------
+\\section{Experience / Internship}
+  \\resumeSubHeadingListStart
+${experience.map(exp => `    \\resumeSubheading
+      {${exp.title.replace(/([%_#&{}$])/g, '\\$1')}} {${exp.startDate || ""} -- ${exp.current ? "Present" : exp.endDate || ""}}
+      {${exp.organization.replace(/([%_#&{}$])/g, '\\$1')}}{}
+      \\resumeItemListStart
+        \\resumeItem{${exp.description.replace(/([%_#&{}$])/g, '\\$1')}}
+      \\resumeItemListEnd`).join('\n')}
+  \\resumeSubHeadingListEnd`
+      : "";
+
+    // Generate LaTeX for education
+    const educationLatex = education.length > 0
+      ? `
+%-----------EDUCATION-----------
+\\section{Education}
+  \\resumeSubHeadingListStart
+${education.map(edu => `    \\resumeSubheading
+      {${edu.organization.replace(/([%_#&{}$])/g, '\\$1')}}{${edu.endDate || ""}}
+      {${edu.title.replace(/([%_#&{}$])/g, '\\$1')}}{${edu.description.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}
+  \\resumeSubHeadingListEnd`
+      : "";
+
+    // Generate LaTeX for skills
+    const skillsLatex = skills
+      ? `
+%-----------TECHNICAL SKILLS-----------
+\\section{Technical Skills and Interests}
+\\begin{itemize}[leftmargin=0.15in, label={}, itemsep=1pt, topsep=0pt]
+  \\item[] \\small{
+    ${skills.replace(/([%_#&{}$])/g, '\\$1')}
+  }
+\\end{itemize}`
+      : "";
+
+    return `\\documentclass[letterpaper,11pt]{article}
+
+\\usepackage{latexsym}
+\\usepackage[empty]{fullpage}
+\\usepackage{titlesec}
+\\usepackage{marvosym}
+\\usepackage[usenames,dvipsnames]{color}
+\\usepackage{verbatim}
+\\usepackage{enumitem}
+\\usepackage[hidelinks]{hyperref}
+\\usepackage{fancyhdr}
+\\usepackage[english]{babel}
+\\usepackage{tabularx}
+\\usepackage{graphicx}
+\\usepackage{fontawesome}
+\\input{glyphtounicode}
+
+\\pagestyle{fancy}
+\\fancyhf{}
+\\fancyfoot{}
+\\renewcommand{\\headrulewidth}{0pt}
+\\renewcommand{\\footrulewidth}{0pt}
+
+\\addtolength{\\oddsidemargin}{-0.5in}
+\\addtolength{\\evensidemargin}{-0.5in}
+\\addtolength{\\textwidth}{1in}
+\\addtolength{\\topmargin}{-.5in}
+\\addtolength{\\textheight}{1.0in}
+
+\\urlstyle{same}
+
+\\raggedbottom
+\\raggedright
+\\setlength{\\tabcolsep}{0in}
+
+\\titleformat{\\section}{
+  \\vspace{-4pt}\\scshape\\raggedright\\large
+}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
+
+\\pdfgentounicode=1
+
+\\newcommand{\\resumeItem}[1]{
+  \\item\\small{
+    {#1 \\vspace{-2pt}}
+  }
+}
+
+\\newcommand{\\resumeSubheading}[4]{
+  \\vspace{-2pt}\\item
+    \\begin{tabular*}{0.97\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}
+      \\textbf{#1} & #2 \\\\
+      \\textit{\\footnotesize #3} & \\textit{\\footnotesize #4} \\\\
+    \\end{tabular*}\\vspace{-7pt}
+}
+
+\\newcommand{\\resumeProjectHeading}[2]{
+    \\item
+    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+      \\small#1 & #2 \\\\
+    \\end{tabular*}\\vspace{-7pt}
+}
+
+\\newcommand{\\resumeSubItem}[1]{\\resumeItem{#1}\\vspace{-4pt}}
+\\renewcommand\\labelitemii{$\\vcenter{\\hbox{\\tiny$\\bullet$}}$}
+\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.15in, label={}]} 
+\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
+\\newcommand{\\resumeItemListStart}{\\begin{itemize}}
+\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
+
+\\begin{document}
+
+\\begin{center}
+    \\textbf{\\Huge \\scshape ${contactInfo.name || "Your Name"}} \\\\ \\vspace{1pt}
+    ${contactInfo.location || "City, Country"} \\\\ \\vspace{1pt}
+    \\small
+    ${contactInfo.phone ? `\\faPhone \\ ${contactInfo.phone} $|$` : ""}
+    ${contactInfo.email ? `\\faEnvelope \\ \\href{mailto:${contactInfo.email}}{\\underline{${contactInfo.email}}} $|$` : ""}
+    ${contactInfo.linkedin ? `\\faLinkedinSquare \\ \\href{${contactInfo.linkedin}}{\\underline{linkedin.com/in/your-profile}} $|$` : ""}
+    ${contactInfo.github ? `\\faGithub \\ \\href{${contactInfo.github}}{\\underline{github.com/your-username}}` : ""}
+\\end{center}
+
+${educationLatex}
+
+${experienceLatex}
+
+${projectsLatex}
+
+${skillsLatex}
+
+${achievementsLatex}
+
+\\end{document}`;
+  };
+
+  // Sync: Form -> LaTeX
+  useEffect(() => {
+    setLatexCode(formToLatex({ ...formValues, achievements }));
+  }, [formValues, achievements]);
+
+  // Gemini AI integration
+  const handleGeminiPrompt = async () => {
+    if (!geminiPrompt.trim()) {
+      toast.error("Please enter a prompt for Gemini");
+      return;
+    }
+
+    // Store the current LaTeX code before making changes
+    setPreviousLatexCode(latexCode);
+    setIsGeminiLoading(true);
+    
+    try {
+      const response = await fetch("/api/gemini-recommend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: geminiPrompt,
+          formData: { ...formValues, achievements },
+          currentLatex: latexCode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get Gemini response");
+      }
+
+      const data = await response.json();
+      
+      if (data.latexCode) {
+        setLatexCode(data.latexCode);
+        toast.success("LaTeX code updated with Gemini's suggestions!");
+      } else {
+        toast.error("No LaTeX code received from Gemini");
+      }
+    } catch (error) {
+      console.error("Gemini API error:", error);
+      toast.error("Failed to get Gemini response");
+    } finally {
+      setIsGeminiLoading(false);
+    }
+  };
+
+  // Undo Gemini changes
+  const handleUndoGeminiChanges = () => {
+    if (previousLatexCode && confirm("Are you sure you want to restore the previous LaTeX code? This will undo all Gemini changes.")) {
+      setLatexCode(previousLatexCode);
+      setPreviousLatexCode(""); // Clear the stored version
+      toast.success("Previous LaTeX code restored!");
+    }
+  };
+
+  // Copy LaTeX code to clipboard
+  const handleCopyLatex = () => {
+    navigator.clipboard.writeText(latexCode);
+    toast.success("LaTeX code copied to clipboard!");
+  };
+
   const getContactMarkdown = () => {
     const { contactInfo } = formValues;
     const parts = [];
@@ -97,10 +366,9 @@ export default function ResumeBuilder({ initialContent }) {
   };
 
   const getCombinedContent = () => {
-    const { summary, skills, experience, education, projects } = formValues;
+    const { skills, experience, education, projects } = formValues;
     return [
       getContactMarkdown(),
-      summary && `## Professional Summary\n\n${summary}`,
       skills && `## Skills\n\n${skills}`,
       entriesToMarkdown(experience, "Work Experience"),
       entriesToMarkdown(education, "Education"),
@@ -110,37 +378,38 @@ export default function ResumeBuilder({ initialContent }) {
       .join("\n\n");
   };
 
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const generatePDF = async () => {
-    setIsGenerating(true);
+  const downloadLatex = async () => {
+    setIsDownloading(true);
     try {
-      const element = document.getElementById("resume-pdf");
-      const opt = {
-        margin: [15, 15],
-        filename: "resume.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
-
-      await html2pdf().set(opt).from(element).save();
+      // Use the current LaTeX code directly
+      const currentLatex = latexCode || formToLatex({ ...watch(), achievements });
+      
+      // Create blob and download
+      const blob = new Blob([currentLatex], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resume.tex';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("LaTeX file downloaded successfully!");
     } catch (error) {
-      console.error("PDF generation error:", error);
+      console.error("Download error:", error);
+      toast.error("Failed to download LaTeX file");
     } finally {
-      setIsGenerating(false);
+      setIsDownloading(false);
     }
   };
 
   const onSubmit = async (data) => {
     try {
-      const formattedContent = previewContent
-        .replace(/\n/g, "\n") // Normalize newlines
-        .replace(/\n\s*\n/g, "\n\n") // Normalize multiple newlines to double newlines
-        .trim();
-
-      console.log(previewContent, formattedContent);
-      await saveResumeFn(previewContent);
+      // Save the structured form data
+      await saveResumeFn({ ...data, achievements });
     } catch (error) {
       console.error("Save error:", error);
     }
@@ -156,7 +425,7 @@ export default function ResumeBuilder({ initialContent }) {
           <Button
             variant="destructive"
             onClick={handleSubmit(onSubmit)}
-            disabled={isSaving}
+            disabled={isSaving || isLoading}
           >
             {isSaving ? (
               <>
@@ -170,250 +439,263 @@ export default function ResumeBuilder({ initialContent }) {
               </>
             )}
           </Button>
-          <Button onClick={generatePDF} disabled={isGenerating}>
-            {isGenerating ? (
+          <Button onClick={downloadLatex} disabled={isDownloading || isLoading}>
+            {isDownloading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Generating PDF...
+                Downloading...
               </>
             ) : (
               <>
                 <Download className="h-4 w-4" />
-                Download PDF
+                Download LaTeX
               </>
             )}
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="edit">Form</TabsTrigger>
-          <TabsTrigger value="preview">Markdown</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading resume data...</span>
+          </div>
+        </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="form">Form</TabsTrigger>
+            <TabsTrigger value="latex">LaTeX</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="edit">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            {/* Contact Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Contact Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Email</label>
-                  <Input
-                    {...register("contactInfo.email")}
-                    type="email"
-                    placeholder="your@email.com"
-                    error={errors.contactInfo?.email}
-                  />
-                  {errors.contactInfo?.email && (
-                    <p className="text-sm text-red-500">
-                      {errors.contactInfo.email.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Mobile Number</label>
-                  <Input
-                    {...register("contactInfo.mobile")}
-                    type="tel"
-                    placeholder="+1 234 567 8900"
-                  />
-                  {errors.contactInfo?.mobile && (
-                    <p className="text-sm text-red-500">
-                      {errors.contactInfo.mobile.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">LinkedIn URL</label>
-                  <Input
-                    {...register("contactInfo.linkedin")}
-                    type="url"
-                    placeholder="https://linkedin.com/in/your-profile"
-                  />
-                  {errors.contactInfo?.linkedin && (
-                    <p className="text-sm text-red-500">
-                      {errors.contactInfo.linkedin.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Twitter/X Profile
-                  </label>
-                  <Input
-                    {...register("contactInfo.twitter")}
-                    type="url"
-                    placeholder="https://twitter.com/your-handle"
-                  />
-                  {errors.contactInfo?.twitter && (
-                    <p className="text-sm text-red-500">
-                      {errors.contactInfo.twitter.message}
-                    </p>
-                  )}
+          {/* Form Tab - Reordered sections */}
+          <TabsContent value="form">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Name</label>
+                    <Input
+                      {...register("contactInfo.name")}
+                      placeholder="Your Full Name"
+                      error={errors.contactInfo?.name}
+                    />
+                    {errors.contactInfo?.name && (
+                      <p className="text-sm text-red-500">
+                        {errors.contactInfo.name.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Location</label>
+                    <Input
+                      {...register("contactInfo.location")}
+                      placeholder="City, State, Country"
+                      error={errors.contactInfo?.location}
+                    />
+                    {errors.contactInfo?.location && (
+                      <p className="text-sm text-red-500">
+                        {errors.contactInfo.location.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Phone</label>
+                    <Input
+                      {...register("contactInfo.phone")}
+                      type="tel"
+                      placeholder="+1 234 567 8900"
+                      error={errors.contactInfo?.phone}
+                    />
+                    {errors.contactInfo?.phone && (
+                      <p className="text-sm text-red-500">
+                        {errors.contactInfo.phone.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Email</label>
+                    <Input
+                      {...register("contactInfo.email")}
+                      type="email"
+                      placeholder="your@email.com"
+                      error={errors.contactInfo?.email}
+                    />
+                    {errors.contactInfo?.email && (
+                      <p className="text-sm text-red-500">
+                        {errors.contactInfo.email.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">LinkedIn URL</label>
+                    <Input
+                      {...register("contactInfo.linkedin")}
+                      type="url"
+                      placeholder="https://linkedin.com/in/your-profile"
+                      error={errors.contactInfo?.linkedin}
+                    />
+                    {errors.contactInfo?.linkedin && (
+                      <p className="text-sm text-red-500">
+                        {errors.contactInfo.linkedin.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">GitHub URL</label>
+                    <Input
+                      {...register("contactInfo.github")}
+                      type="url"
+                      placeholder="https://github.com/your-username"
+                      error={errors.contactInfo?.github}
+                    />
+                    {errors.contactInfo?.github && (
+                      <p className="text-sm text-red-500">
+                        {errors.contactInfo.github.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Summary */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Professional Summary</h3>
-              <Controller
-                name="summary"
-                control={control}
-                render={({ field }) => (
-                  <Textarea
-                    {...field}
-                    className="h-32"
-                    placeholder="Write a compelling professional summary..."
-                    error={errors.summary}
-                  />
+              {/* Education */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Education</h3>
+                <Controller
+                  name="education"
+                  control={control}
+                  render={({ field }) => (
+                    <EntryForm
+                      type="Education"
+                      entries={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                {errors.education && (
+                  <p className="text-sm text-red-500">
+                    {errors.education.message}
+                  </p>
                 )}
-              />
-              {errors.summary && (
-                <p className="text-sm text-red-500">{errors.summary.message}</p>
-              )}
-            </div>
+              </div>
 
-            {/* Skills */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Skills</h3>
-              <Controller
-                name="skills"
-                control={control}
-                render={({ field }) => (
-                  <Textarea
-                    {...field}
-                    className="h-32"
-                    placeholder="List your key skills..."
-                    error={errors.skills}
-                  />
+              {/* Experience */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Work Experience</h3>
+                <Controller
+                  name="experience"
+                  control={control}
+                  render={({ field }) => (
+                    <EntryForm
+                      type="Experience"
+                      entries={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                {errors.experience && (
+                  <p className="text-sm text-red-500">
+                    {errors.experience.message}
+                  </p>
                 )}
-              />
-              {errors.skills && (
-                <p className="text-sm text-red-500">{errors.skills.message}</p>
-              )}
-            </div>
+              </div>
 
-            {/* Experience */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Work Experience</h3>
-              <Controller
-                name="experience"
-                control={control}
-                render={({ field }) => (
-                  <EntryForm
-                    type="Experience"
-                    entries={field.value}
-                    onChange={field.onChange}
-                  />
+              {/* Projects */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Projects</h3>
+                <Controller
+                  name="projects"
+                  control={control}
+                  render={({ field }) => (
+                    <EntryForm
+                      type="Project"
+                      entries={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                {errors.projects && (
+                  <p className="text-sm text-red-500">
+                    {errors.projects.message}
+                  </p>
                 )}
-              />
-              {errors.experience && (
-                <p className="text-sm text-red-500">
-                  {errors.experience.message}
-                </p>
-              )}
-            </div>
+              </div>
 
-            {/* Education */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Education</h3>
-              <Controller
-                name="education"
-                control={control}
-                render={({ field }) => (
-                  <EntryForm
-                    type="Education"
-                    entries={field.value}
-                    onChange={field.onChange}
-                  />
+              {/* Skills */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Technical Skills and Interests</h3>
+                <Controller
+                  name="skills"
+                  control={control}
+                  render={({ field }) => (
+                    <Textarea
+                      {...field}
+                      className="h-32"
+                      placeholder="List your key skills..."
+                      error={errors.skills}
+                    />
+                  )}
+                />
+                {errors.skills && (
+                  <p className="text-sm text-red-500">{errors.skills.message}</p>
                 )}
-              />
-              {errors.education && (
-                <p className="text-sm text-red-500">
-                  {errors.education.message}
-                </p>
-              )}
-            </div>
+              </div>
 
-            {/* Projects */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Projects</h3>
-              <Controller
-                name="projects"
-                control={control}
-                render={({ field }) => (
-                  <EntryForm
-                    type="Project"
-                    entries={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-              {errors.projects && (
-                <p className="text-sm text-red-500">
-                  {errors.projects.message}
-                </p>
-              )}
-            </div>
-          </form>
-        </TabsContent>
+              {/* Achievements */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Achievements</h3>
+                <AchievementForm
+                  achievements={achievements}
+                  onChange={setAchievements}
+                />
+              </div>
+            </form>
+          </TabsContent>
 
-        <TabsContent value="preview">
-          {activeTab === "preview" && (
-            <Button
-              variant="link"
-              type="button"
-              className="mb-2"
-              onClick={() =>
-                setResumeMode(resumeMode === "preview" ? "edit" : "preview")
-              }
-            >
-              {resumeMode === "preview" ? (
-                <>
-                  <Edit className="h-4 w-4" />
-                  Edit Resume
-                </>
-              ) : (
-                <>
-                  <Monitor className="h-4 w-4" />
-                  Show Preview
-                </>
-              )}
-            </Button>
-          )}
-
-          {activeTab === "preview" && resumeMode !== "preview" && (
-            <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2">
-              <AlertTriangle className="h-5 w-5" />
-              <span className="text-sm">
-                You will lose editied markdown if you update the form data.
-              </span>
-            </div>
-          )}
-          <div className="border rounded-lg">
-            <MDEditor
-              value={previewContent}
-              onChange={setPreviewContent}
-              height={800}
-              preview={resumeMode}
+          {/* LaTeX Tab */}
+          <TabsContent value="latex">
+            <Textarea
+              value={latexCode}
+              onChange={e => setLatexCode(e.target.value)}
+              className="h-96 font-mono"
             />
-          </div>
-          <div className="hidden">
-            <div id="resume-pdf">
-              <MDEditor.Markdown
-                source={previewContent}
-                style={{
-                  background: "white",
-                  color: "black",
-                }}
+            <div className="flex gap-2 mt-2">
+              <Input
+                value={geminiPrompt}
+                onChange={e => setGeminiPrompt(e.target.value)}
+                placeholder="Ask Gemini to improve or generate LaTeX..."
+                disabled={isGeminiLoading}
               />
+              <Button 
+                onClick={handleGeminiPrompt} 
+                disabled={isGeminiLoading}
+              >
+                {isGeminiLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Send to Gemini"
+                )}
+              </Button>
+              {previousLatexCode && (
+                <Button 
+                  onClick={handleUndoGeminiChanges} 
+                  variant="outline"
+                  disabled={isGeminiLoading}
+                >
+                  Undo Gemini Changes
+                </Button>
+              )}
+              <Button onClick={handleCopyLatex} variant="outline">Copy LaTeX</Button>
             </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

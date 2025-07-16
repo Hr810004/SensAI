@@ -6,9 +6,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-latest" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
-export async function saveResume(content) {
+export async function saveResume(formData) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
@@ -24,11 +24,21 @@ export async function saveResume(content) {
         userId: user.id,
       },
       update: {
-        content,
+        contactInfo: formData.contactInfo,
+        skills: formData.skills,
+        experience: formData.experience,
+        education: formData.education,
+        projects: formData.projects,
+        achievements: formData.achievements || [],
       },
       create: {
         userId: user.id,
-        content,
+        contactInfo: formData.contactInfo,
+        skills: formData.skills,
+        experience: formData.experience,
+        education: formData.education,
+        projects: formData.projects,
+        achievements: formData.achievements || [],
       },
     });
 

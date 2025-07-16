@@ -49,7 +49,7 @@ export async function POST(req) {
       prompt = `Generate ${count} open-ended ${subsection} interview questions for a ${role} interview at ${company}. Return JSON: [{question, explanation}]`;
     }
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();

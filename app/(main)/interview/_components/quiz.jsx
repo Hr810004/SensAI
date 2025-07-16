@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -17,26 +10,23 @@ import { generateQuiz, saveQuizResult } from "@/actions/interview";
 import QuizResult from "./quiz-result";
 import useFetch from "@/hooks/use-fetch";
 import { BarLoader } from "react-spinners";
-import { useRef } from "react";
 import PreQuizModal from "./pre-quiz-modal";
 
 let faceapiLoaded = false;
 
 export default function Quiz() {
-  // New state for pre-quiz modal and company/role
   const [preQuizOpen, setPreQuizOpen] = useState(true);
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
-  // New state for multi-section quiz
-  const [quizSections, setQuizSections] = useState(null); // { sectionName: { questions: [], ... } }
+  const [quizSections, setQuizSections] = useState(null);
   const [currentSection, setCurrentSection] = useState(null);
   const [currentSubsection, setCurrentSubsection] = useState(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [mcqAnswers, setMcqAnswers] = useState({}); // {section: {subsection: [answers]}}
-  const [textAnswers, setTextAnswers] = useState({}); // {section: {subsection: [answers]}}
-  const [audioAnswers, setAudioAnswers] = useState({}); // {section: {subsection: [audioBlobs]}}
+  const [mcqAnswers, setMcqAnswers] = useState({});
+  const [textAnswers, setTextAnswers] = useState({});
+  const [audioAnswers, setAudioAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
-  const [feedback, setFeedback] = useState([]); // AI feedback per question
+  const [feedback, setFeedback] = useState([]);
   const [recording, setRecording] = useState(false);
   const recognitionRef = useRef(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -49,23 +39,14 @@ export default function Quiz() {
   const [faceDetected, setFaceDetected] = useState(true);
   const [noFaceTimer, setNoFaceTimer] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [isTabActive, setIsTabActive] = useState(true);
 
-  const {
-    loading: generatingQuiz,
-    fn: generateQuizFn,
-    data: quizData,
-  } = useFetch(generateQuiz);
-
-  const {
-    loading: savingResult,
-    fn: saveQuizResultFn,
-    data: resultData,
-    setData: setResultData,
-  } = useFetch(saveQuizResult);
+  const { loading: generatingQuiz, fn: generateQuizFn, data: quizData } = useFetch(generateQuiz);
+  const { loading: savingResult, fn: saveQuizResultFn, data: resultData, setData: setResultData } = useFetch(saveQuizResult);
 
   useEffect(() => {
     if (quizData) {
-      // Initialize answers for new quiz
       setMcqAnswers({});
       setTextAnswers({});
       setAudioAnswers({});
@@ -73,7 +54,6 @@ export default function Quiz() {
     }
   }, [quizData]);
 
-  // Start video recording when quiz starts
   useEffect(() => {
     if (!preQuizOpen && !mediaStream) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -96,22 +76,34 @@ export default function Quiz() {
           alert("Could not access webcam/mic. Video recording will be disabled.");
         });
     }
-    // Cleanup on unmount
     return () => {
       if (mediaStream) {
         mediaStream.getTracks().forEach((track) => track.stop());
       }
     };
-    // eslint-disable-next-line
   }, [preQuizOpen]);
 
-  // Call this when quiz is finished
+  useEffect(() => {
+    const handleTabSwitch = () => {
+      if (document.hidden) {
+        setIsTabActive(false);
+        setTabSwitches(prev => prev + 1);
+        toast.warning("Tab switching detected! Please stay on this page.");
+      } else {
+        setIsTabActive(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleTabSwitch);
+    return () => {
+      document.removeEventListener('visibilitychange', handleTabSwitch);
+    };
+  }, []);
+
   const handleFinishQuiz = () => {
     setQuizFinished(true);
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
     }
-    // Calculate scores and build result object
     const sectionScores = {};
     let totalScore = 0;
     let totalQuestions = 0;
@@ -151,7 +143,6 @@ export default function Quiz() {
         totalQuestions += sectionTotal;
       }
     });
-    // Mock AI tips for now
     const improvementTips = {
       "Aptitude": "Review your mistakes and practice more company-specific aptitude questions.",
       "CS Fundamentals": "Focus on explaining your thought process clearly in technical questions.",
@@ -162,10 +153,13 @@ export default function Quiz() {
       sectionScores,
       improvementTips,
       questions: questionsReview,
+      proctoringData: {
+        tabSwitches,
+        isTabActive
+      }
     });
   };
 
-  // Helper: determine input type for current question
   function getInputType(section, subsection) {
     if (section === "Aptitude") return "mcq";
     if (section === "CS Fundamentals" && subsection === "DSA") return "text-audio";
@@ -174,7 +168,6 @@ export default function Quiz() {
     return "mcq";
   }
 
-  // Handlers for MCQ, text, and audio input
   const handleMcqChange = (val) => {
     setMcqAnswers((prev) => ({
       ...prev,
@@ -197,40 +190,6 @@ export default function Quiz() {
       },
     }));
   };
-  // Audio input logic (recording, storing blobs) will be added next
-
-  // Navigation
-  const questions = quizSections[currentSection][currentSubsection];
-  const totalQuestions = questions.length;
-  const currentQuestion = questions[currentQuestionIdx];
-  const inputType = getInputType(currentSection, currentSubsection);
-
-  // Ensure answer arrays are initialized
-  if (!mcqAnswers[currentSection]?.[currentSubsection]) {
-    setMcqAnswers((prev) => ({
-      ...prev,
-      [currentSection]: {
-        ...(prev[currentSection] || {}),
-        [currentSubsection]: Array(totalQuestions).fill("")
-      },
-    }));
-  }
-  if (!textAnswers[currentSection]?.[currentSubsection] && inputType === "text-audio") {
-    setTextAnswers((prev) => ({
-      ...prev,
-      [currentSection]: {
-        ...(prev[currentSection] || {}),
-        [currentSubsection]: Array(totalQuestions).fill("")
-      },
-    }));
-  }
-
-  const handleAnswer = (answer) => {
-    const newAnswers = [...answers];
-    newAnswers[currentQuestion] = answer;
-    setAnswers(newAnswers);
-  };
-
   const handleTextAnswer = (e) => {
     const newTextAnswers = [...textAnswers];
     newTextAnswers[currentQuestion] = e.target.value;
@@ -274,7 +233,6 @@ export default function Quiz() {
     setResultData(null);
   };
 
-  // Voice input logic
   const handleStartRecording = () => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       alert("Speech recognition not supported in this browser.");
@@ -287,7 +245,6 @@ export default function Quiz() {
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      // Store transcript in the correct answer state
       if (inputType === "text-audio") {
         setTextAnswers((prev) => ({
           ...prev,
@@ -323,7 +280,6 @@ export default function Quiz() {
     }
   };
 
-  // Feedback handler (integrate with API)
   const handleGetFeedback = async () => {
     try {
       const res = await fetch("/api/interview-feedback", {
@@ -344,13 +300,11 @@ export default function Quiz() {
     }
   };
 
-  // Handler for starting the quiz after company/role selection
   const handleStartQuiz = async (selectedCompany, selectedRole) => {
     setCompany(selectedCompany);
     setRole(selectedRole);
     setPreQuizOpen(false);
     setLoadingQuestions(true);
-    // Call API to generate questions
     try {
       const res = await fetch("/api/generate-quiz-questions", {
         method: "POST",
@@ -360,7 +314,6 @@ export default function Quiz() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setQuizSections(data.quiz);
-      // Set initial section/subsection
       const sectionNames = Object.keys(data.quiz);
       const firstSection = sectionNames[0];
       const firstSubsection = Object.keys(data.quiz[firstSection])[0];
@@ -373,13 +326,11 @@ export default function Quiz() {
     }
   };
 
-  // Load face-api.js models and run detection
   useEffect(() => {
     if (!mediaStream || quizFinished) return;
     let interval;
     async function loadAndDetect() {
       if (!faceapiLoaded) {
-        // Dynamically import face-api.js
         await import("face-api.js");
         await window.faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights");
         faceapiLoaded = true;
@@ -413,24 +364,19 @@ export default function Quiz() {
       if (interval) clearInterval(interval);
       if (noFaceTimer) clearTimeout(noFaceTimer);
     };
-    // eslint-disable-next-line
   }, [mediaStream, quizFinished]);
 
-  // Show pre-quiz modal if not started
   if (preQuizOpen) {
     return <PreQuizModal open={preQuizOpen} onStart={handleStartQuiz} />;
   }
 
-  // Show loading spinner while generating questions
   if (loadingQuestions || !quizSections) {
     return <BarLoader className="mt-8 mx-auto" width={200} color="gray" />;
   }
 
-  // Section/subsection navigation UI
   const sectionNames = Object.keys(quizSections);
   const subsectionNames = Object.keys(quizSections[currentSection]);
 
-  // At the end of the quiz, show video preview and download
   if (quizFinished) {
     return (
       <QuizResult
@@ -448,7 +394,12 @@ export default function Quiz() {
           No face detected! Please ensure you are present for the quiz.
         </div>
       )}
-      {/* Small video preview for face detection */}
+      
+      {tabSwitches > 0 && (
+        <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-2 font-semibold text-center">
+          ⚠️ Tab switched {tabSwitches} time{tabSwitches > 1 ? 's' : ''}. Please stay on this page.
+        </div>
+      )}
       {mediaStream && !quizFinished && (
         <video
           ref={videoRef}
@@ -494,7 +445,6 @@ export default function Quiz() {
           Question {currentQuestionIdx + 1} of {totalQuestions}
         </div>
         <div className="mb-2">{currentQuestion?.question || "No questions found."}</div>
-        {/* Render input type */}
         {inputType === "mcq" && (
           <RadioGroup
             value={mcqAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import DashboardView from "./_component/dashboard-view";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const [insights, setInsights] = useState(null);
@@ -9,11 +9,11 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
-  useEffect(() => {
+  const fetchData = () => {
     setLoading(true);
     setError(null);
-    // First, check onboarding status
     fetch("/api/user-onboarding-status")
       .then(async (res) => {
         if (!res.ok) throw new Error("Not authenticated or onboarding status error");
@@ -24,7 +24,6 @@ export default function DashboardPage() {
           router.replace("/onboarding");
           return;
         }
-        // Fetch user profile
         fetch("/api/user-profile")
           .then(async (res) => {
             if (!res.ok) throw new Error(await res.text());
@@ -32,7 +31,6 @@ export default function DashboardPage() {
           })
           .then((userData) => {
             setUser(userData);
-            // Now fetch insights
             fetch("/api/industry-insights")
               .then(async (res) => {
                 if (!res.ok) throw new Error(await res.text());
@@ -56,7 +54,11 @@ export default function DashboardPage() {
         setError(err.message || "Not authenticated or onboarding status error");
         setLoading(false);
       });
-  }, [router]);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [pathname]);
 
   if (loading) return <div className="container mx-auto text-center py-20">Loading...</div>;
   if (error) {

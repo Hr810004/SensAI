@@ -29,10 +29,18 @@ export const onboardingSchema = z.object({
 });
 
 export const contactSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  location: z.string().min(1, "Location is required"),
+  phone: z.string().min(1, "Phone number is required"),
   email: z.string().email("Invalid email address"),
-  mobile: z.string().optional(),
-  linkedin: z.string().optional(),
-  twitter: z.string().optional(),
+  linkedin: z.string().url("Invalid LinkedIn URL").optional(),
+  github: z.string().url("Invalid GitHub URL").optional(),
+});
+
+// Schema for links (used in projects and achievements)
+export const linkSchema = z.object({
+  label: z.string().min(1, "Link label is required"),
+  url: z.string().url("Invalid URL"),
 });
 
 export const entrySchema = z
@@ -43,6 +51,7 @@ export const entrySchema = z
     endDate: z.string().optional(),
     description: z.string().min(1, "Description is required"),
     current: z.boolean().default(false),
+    links: z.array(linkSchema).optional(), // Optional links for projects
   })
   .refine(
     (data) => {
@@ -57,13 +66,19 @@ export const entrySchema = z
     }
   );
 
+// Schema for achievements with optional links
+export const achievementSchema = z.object({
+  text: z.string().min(1, "Achievement text is required"),
+  url: z.string().url("Invalid URL").optional(),
+});
+
 export const resumeSchema = z.object({
   contactInfo: contactSchema,
-  summary: z.string().min(1, "Professional summary is required"),
   skills: z.string().min(1, "Skills are required"),
   experience: z.array(entrySchema),
   education: z.array(entrySchema),
   projects: z.array(entrySchema),
+  achievements: z.array(achievementSchema).optional(), // Optional achievements
 });
 
 export const coverLetterSchema = z.object({

@@ -46,16 +46,19 @@ export function EntryForm({ type, entries, onChange }) {
       endDate: "",
       description: "",
       current: false,
+      links: [], // Add links array for projects
     },
   });
 
   const current = watch("current");
+  const links = watch("links") || [];
 
   const handleAdd = handleValidation((data) => {
     const formattedEntry = {
       ...data,
       startDate: formatDisplayDate(data.startDate),
       endDate: data.current ? "" : formatDisplayDate(data.endDate),
+      links: data.links || [], // Include links in the entry
     };
 
     onChange([...entries, formattedEntry]);
@@ -101,6 +104,25 @@ export function EntryForm({ type, entries, onChange }) {
     });
   };
 
+  // Add/remove links for projects
+  const addLink = () => {
+    const currentLinks = watch("links") || [];
+    setValue("links", [...currentLinks, { label: "", url: "" }]);
+  };
+
+  const removeLink = (index) => {
+    const currentLinks = watch("links") || [];
+    const newLinks = currentLinks.filter((_, i) => i !== index);
+    setValue("links", newLinks);
+  };
+
+  const updateLink = (index, field, value) => {
+    const currentLinks = watch("links") || [];
+    const newLinks = [...currentLinks];
+    newLinks[index] = { ...newLinks[index], [field]: value };
+    setValue("links", newLinks);
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-4">
@@ -125,6 +147,18 @@ export function EntryForm({ type, entries, onChange }) {
                   ? `${item.startDate} - Present`
                   : `${item.startDate} - ${item.endDate}`}
               </p>
+              {type === "Project" && item.links && item.links.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-sm font-medium">Links:</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {item.links.map((link, linkIndex) => (
+                      <span key={linkIndex} className="text-sm text-blue-600">
+                        {link.label}: {link.url}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <p className="mt-2 text-sm whitespace-pre-wrap">
                 {item.description}
               </p>
@@ -207,6 +241,48 @@ export function EntryForm({ type, entries, onChange }) {
               <label htmlFor="current">Current {type}</label>
             </div>
 
+            {/* Links section for projects */}
+            {type === "Project" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Links</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addLink}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Add Link
+                  </Button>
+                </div>
+                {links.map((link, linkIndex) => (
+                  <div key={linkIndex} className="flex gap-2 items-center">
+                    <Input
+                      placeholder="Label (e.g., GitHub, Demo)"
+                      value={link.label || ""}
+                      onChange={(e) => updateLink(linkIndex, "label", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="URL"
+                      value={link.url || ""}
+                      onChange={(e) => updateLink(linkIndex, "url", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => removeLink(linkIndex)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Textarea
                 placeholder={`Description of your ${type.toLowerCase()}`}
@@ -267,6 +343,120 @@ export function EntryForm({ type, entries, onChange }) {
         >
           <PlusCircle className="h-4 w-4 mr-2" />
           Add {type}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// AchievementForm component for handling achievements with optional links
+export function AchievementForm({ achievements, onChange }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [newAchievement, setNewAchievement] = useState({ text: "", url: "" });
+
+  const handleAdd = () => {
+    if (!newAchievement.text.trim()) {
+      toast.error("Achievement text is required");
+      return;
+    }
+
+    if (newAchievement.url && !newAchievement.url.startsWith("http")) {
+      toast.error("Please enter a valid URL starting with http:// or https://");
+      return;
+    }
+
+    onChange([...achievements, { ...newAchievement }]);
+    setNewAchievement({ text: "", url: "" });
+    setIsAdding(false);
+  };
+
+  const handleDelete = (index) => {
+    const newAchievements = achievements.filter((_, i) => i !== index);
+    onChange(newAchievements);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-4">
+        {achievements.map((achievement, index) => (
+          <Card key={index}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Achievement {index + 1}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                onClick={() => handleDelete(index)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm whitespace-pre-wrap">{achievement.text}</p>
+              {achievement.url && (
+                <p className="mt-2 text-sm text-blue-600">
+                  <a href={achievement.url} target="_blank" rel="noopener noreferrer">
+                    {achievement.url}
+                  </a>
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {isAdding && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Add Achievement</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Describe your achievement..."
+                value={newAchievement.text}
+                onChange={(e) => setNewAchievement({ ...newAchievement, text: e.target.value })}
+                className="h-32"
+              />
+            </div>
+            <div className="space-y-2">
+              <Input
+                placeholder="Optional: URL (e.g., certificate link, profile link)"
+                value={newAchievement.url}
+                onChange={(e) => setNewAchievement({ ...newAchievement, url: e.target.value })}
+                type="url"
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNewAchievement({ text: "", url: "" });
+                setIsAdding(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleAdd}>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Achievement
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {!isAdding && (
+        <Button
+          className="w-full"
+          variant="outline"
+          onClick={() => setIsAdding(true)}
+        >
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Add Achievement
         </Button>
       )}
     </div>

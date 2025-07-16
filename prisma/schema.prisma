@@ -49,7 +49,20 @@ model Resume {
   id          String    @id @default(cuid())
   userId      String    @unique    // One resume per user
   user        User      @relation(fields: [userId], references: [id])
-  content     String    @db.Text // Markdown content
+  
+  // Contact Information
+  contactInfo Json      // { name, location, phone, email, linkedin?, github? }
+  
+  // Resume Sections
+  skills      String    @db.Text
+  experience  Json[]    // Array of { title, organization, startDate, endDate, description, current }
+  education   Json[]    // Array of { title, organization, startDate, endDate, description, current }
+  projects    Json[]    // Array of { title, organization, startDate, endDate, description, current, links: [{label, url}] }
+  achievements Json[]   // Array of { text, url? }
+  
+  // Legacy field for backward compatibility
+  content     String?   @db.Text // Markdown content (deprecated)
+  
   atsScore    Float?
   feedback    String?
   createdAt   DateTime  @default(now())
