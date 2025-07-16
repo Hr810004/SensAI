@@ -339,7 +339,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           <CardTitle className="text-xl font-bold text-primary">Skill Gap Analysis & Learning Path</CardTitle>
           <CardDescription className="text-muted-foreground">
             Target Role: {user?.targetRole ? (
-              <Badge className="ml-2 bg-white/20 text-white border-white/30 px-3 py-1 text-base font-semibold">{user.targetRole}</Badge>
+              <Badge variant="default" className="ml-2 bg-zinc-900 text-white border-none px-3 py-1 text-base font-semibold cursor-default select-text">{user.targetRole}</Badge>
             ) : (
               <span className="italic text-white/70">Not set</span>
             )}
@@ -372,51 +372,53 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           <CardDescription className="text-muted-foreground">Username: {user.leetcodeUsername}</CardDescription>
         </CardHeader>
         <CardContent>
-          {leetcodeLoading ? (
-            <div className="text-center py-4">Loading LeetCode stats...</div>
-          ) : leetcodeError ? (
-            <div className="text-red-500">{leetcodeError}</div>
-          ) : leetcodeStats ? (
-            <div className="space-y-2 overflow-y-auto max-h-64">
-              <div className="text-lg font-medium">
-                Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
+          <div className="mt-2 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
+            {leetcodeLoading ? (
+              <div className="text-center py-4">Loading LeetCode stats...</div>
+            ) : leetcodeError ? (
+              <div className="text-red-500">{leetcodeError}</div>
+            ) : leetcodeStats ? (
+              <div className="space-y-2">
+                <div className="text-lg font-medium">
+                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
+                </div>
+                <div className="flex gap-4 text-sm text-muted-foreground">
+                  <span>Easy: {leetcodeStats.easySolved}</span>
+                  <span>Medium: {leetcodeStats.mediumSolved}</span>
+                  <span>Hard: {leetcodeStats.hardSolved}</span>
+                </div>
+                <Button
+                  variant="default"
+                  className="mt-4"
+                  onClick={() => {
+                    setShowGeminiRec(true);
+                    fetchGeminiRec(user.targetRole);
+                  }}
+                  disabled={geminiLoading}
+                >
+                  {geminiLoading ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Loading Recommendations...</> : <>Get Gemini AI Recommendations</>}
+                </Button>
               </div>
-              <div className="flex gap-4 text-sm text-muted-foreground">
-                <span>Easy: {leetcodeStats.easySolved}</span>
-                <span>Medium: {leetcodeStats.mediumSolved}</span>
-                <span>Hard: {leetcodeStats.hardSolved}</span>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No LeetCode stats available for this user.</p>
+                <p>Please ensure your LeetCode username is set in your profile.</p>
               </div>
-              <Button
-                variant="default"
-                className="mt-4"
-                onClick={() => {
-                  setShowGeminiRec(true);
-                  fetchGeminiRec(user.targetRole);
-                }}
-                disabled={geminiLoading}
-              >
-                {geminiLoading ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Loading Recommendations...</> : <>Get Gemini AI Recommendations</>}
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No LeetCode stats available for this user.</p>
-              <p>Please ensure your LeetCode username is set in your profile.</p>
-            </div>
-          )}
-          {/* Gemini AI Recommendations Section */}
-          {showGeminiRec && (
-            <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted">
-              <div className="font-semibold text-primary mb-2">Gemini AI Recommendations</div>
-              {geminiError ? (
-                <div className="text-red-500">{geminiError}</div>
-              ) : geminiRec ? (
-                <ReactMarkdown className="prose prose-invert max-w-none markdown-content">{geminiRec}</ReactMarkdown>
-              ) : (
-                <div className="text-muted-foreground">Loading recommendations...</div>
-              )}
-            </div>
-          )}
+            )}
+            {/* Gemini AI Recommendations Section */}
+            {showGeminiRec && (
+              <div className="mt-6">
+                <div className="font-semibold text-primary mb-2">Gemini AI Recommendations</div>
+                {geminiError ? (
+                  <div className="text-red-500">{geminiError}</div>
+                ) : geminiRec ? (
+                  <ReactMarkdown className="prose prose-invert max-w-none markdown-content">{geminiRec}</ReactMarkdown>
+                ) : (
+                  <div className="text-muted-foreground">Loading recommendations...</div>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -510,46 +512,8 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
         </Card>
       </div>
 
-      {/* Industry Trends */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Key Industry Trends</CardTitle>
-            <CardDescription>
-              Current trends shaping the industry
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-4">
-              {insights.keyTrends.map((trend, index) => (
-                <li key={index} className="flex items-start space-x-2">
-                  <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                  <span>{trend}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recommended Skills</CardTitle>
-            <CardDescription>Skills to consider developing</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {insights.recommendedSkills.map((skill) => (
-                <Badge key={skill} variant="outline">
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Salary Ranges Chart */}
-      <Card className="col-span-4">
+      {/* Salary Ranges Chart (moved up) */}
+      <Card className="col-span-4 mt-6">
         <CardHeader>
           <CardTitle>Salary Ranges by Role</CardTitle>
           <CardDescription>
@@ -588,6 +552,44 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Industry Trends */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Key Industry Trends</CardTitle>
+            <CardDescription>
+              Current trends shaping the industry
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-4">
+              {insights.keyTrends.map((trend, index) => (
+                <li key={index} className="flex items-start space-x-2">
+                  <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
+                  <span>{trend}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommended Skills</CardTitle>
+            <CardDescription>Skills to consider developing</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {insights.recommendedSkills.map((skill) => (
+                <Badge key={skill} variant="outline">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
