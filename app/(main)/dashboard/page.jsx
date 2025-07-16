@@ -8,6 +8,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [viewKey, setViewKey] = useState(Date.now()); // Unique key for DashboardView
   const router = useRouter();
   const pathname = usePathname();
   const isFirstLoad = useRef(true);
@@ -58,13 +59,15 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    // Always fetch on first mount
+    // Update viewKey on every navigation to /dashboard
+    setViewKey(Date.now());
     fetchData();
-    // Also fetch if sessionStorage flag is set (internal navigation)
-    if (typeof window !== 'undefined' && window.sessionStorage.getItem('forceDashboardReload')) {
-      fetchData();
-      window.sessionStorage.removeItem('forceDashboardReload');
-    }
+    // Cleanup: reset state on unmount
+    return () => {
+      setLoading(true);
+      setUser(null);
+      setInsights(null);
+    };
   }, [pathname]);
 
   // (No window/tab focus event listener)
@@ -82,7 +85,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto">
-      <DashboardView key={pathname} insights={insights} user={user} />
+      <DashboardView key={viewKey} insights={insights} user={user} />
     </div>
   );
 }
