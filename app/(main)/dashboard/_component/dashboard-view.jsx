@@ -56,13 +56,13 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
       setLeetcodeLoading(true);
       setLeetcodeError(null);
       setLeetcodeStats(null);
-      fetch(`/api/leetcode-stats?username=${username}&topics=true`)
+      fetch(`/api/leetcode-stats?username=${username}`)
         .then(async (res) => {
           if (!res.ok) throw new Error(await res.text());
           return res.json();
         })
         .then((data) => {
-          setLeetcodeStats(data.topics || []);
+          setLeetcodeStats(data);
           setLeetcodeLoading(false);
         })
         .catch((err) => {
@@ -75,33 +75,31 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   }, []);
 
   // Fetch Gemini recommendations
-  const fetchGeminiRec = useCallback((targetRole, leetcodeTopics) => {
-    if (targetRole) {
-      setGeminiLoading(true);
-      setGeminiError(null);
-      setGeminiRec(null);
-      fetch("/api/gemini-recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetRole,
-          ...(leetcodeTopics ? { leetcodeTopics } : {}),
-        }),
+  const fetchGeminiRec = useCallback((targetRole) => {
+    setGeminiLoading(true);
+    setGeminiError(null);
+    setGeminiRec(null);
+    fetch('/api/gemini-recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetRole,
+        leetcodeStats,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
       })
-        .then(async (res) => {
-          if (!res.ok) throw new Error(await res.text());
-          return res.json();
-        })
-        .then((data) => {
-          setGeminiRec(data.recommendation);
-          setGeminiLoading(false);
-        })
-        .catch((err) => {
-          setGeminiError(err.message || "Failed to get AI recommendation");
-          setGeminiLoading(false);
-        });
-    }
-  }, []);
+      .then((data) => {
+        setGeminiRec(data.recommendation);
+        setGeminiLoading(false);
+      })
+      .catch((err) => {
+        setGeminiError(err.message || 'Failed to fetch Gemini recommendation');
+        setGeminiLoading(false);
+      });
+  }, [leetcodeStats]);
 
   // Fetch insights
   const fetchInsights = useCallback(() => {
@@ -120,8 +118,8 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   }, [user.leetcodeUsername, fetchLeetcodeStats]);
 
   useEffect(() => {
-    fetchGeminiRec(user.targetRole, leetcodeStats);
-  }, [user.targetRole, leetcodeStats, fetchGeminiRec]);
+    fetchGeminiRec(user.targetRole);
+  }, [user.targetRole, fetchGeminiRec]);
 
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
@@ -180,7 +178,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           skillGap: true,
           skills: user.skills,
           targetRole: user.targetRole,
-          ...(leetcodeStats ? { leetcodeTopics: leetcodeStats } : {}),
+          leetcodeStats,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -316,37 +314,19 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
             {leetcodeStats && (
               <div className="space-y-2">
                 <div className="text-lg font-medium">
-                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.reduce((sum, topic) => sum + topic.totalSolved, 0)}</span> out of <span className="font-semibold">{leetcodeStats.reduce((sum, topic) => sum + topic.totalQuestions, 0)}</span>
+                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
                 </div>
                 <div className="flex gap-4 text-sm text-muted-foreground">
-                  <span>Easy: {leetcodeStats.reduce((sum, topic) => sum + topic.easySolved, 0)}</span>
-                  <span>Medium: {leetcodeStats.reduce((sum, topic) => sum + topic.mediumSolved, 0)}</span>
-                  <span>Hard: {leetcodeStats.reduce((sum, topic) => sum + topic.hardSolved, 0)}</span>
+                  <span>Easy: {leetcodeStats.easySolved}</span>
+                  <span>Medium: {leetcodeStats.mediumSolved}</span>
+                  <span>Hard: {leetcodeStats.hardSolved}</span>
                 </div>
               </div>
             )}
-            {/* LeetCode Topic Breakdown Section */}
-            {leetcodeStats && leetcodeStats.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-2 text-indigo-700 flex items-center gap-2">
-                  <BookOpenIcon className="h-5 w-5" />
-                  LeetCode Topic-wise Progress
-                </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={leetcodeStats}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="tagName" tick={{ fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={80} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="problemsSolved" fill="#6366f1" />
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <span>Each bar shows how many problems you have solved in that topic.</span>
-                </div>
+            {leetcodeStats === null && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No LeetCode stats available for this user.</p>
+                <p>Please ensure your LeetCode username is set in your profile.</p>
               </div>
             )}
             {/* Gemini AI Recommendation */}

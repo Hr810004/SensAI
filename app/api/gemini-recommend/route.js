@@ -37,7 +37,7 @@ Please provide an improved or modified LaTeX code based on the user's request.
 
   // Handle skill gap analysis
   if (body.skillGap) {
-    const { skills, targetRole, leetcodeStats, leetcodeTopics } = body;
+    const { skills, targetRole, leetcodeStats } = body;
     if (!targetRole) {
       return NextResponse.json({ error: 'Missing targetRole for skill gap analysis' }, { status: 400 });
     }
@@ -46,15 +46,7 @@ Please provide an improved or modified LaTeX code based on the user's request.
     if (skills && skills.length > 0) {
       prompt += `Their current skills: ${Array.isArray(skills) ? skills.join(", ") : skills}\n`;
     }
-    if (leetcodeTopics && Array.isArray(leetcodeTopics) && leetcodeTopics.length > 0) {
-      prompt += `Here is a breakdown of their LeetCode practice by topic (format: Topic: Problems Solved):\n`;
-      leetcodeTopics.forEach(t => {
-        prompt += `- ${t.tagName}: ${t.problemsSolved}\n`;
-      });
-      prompt += `\nAnalyze which topics are strong (many solved) and which are weak (few or zero solved).\n`;
-      prompt += `Give topic-specific advice: For weak topics, recommend a learning path and 2-3 specific resources (courses, books, or websites). For strong topics, suggest how to deepen mastery or apply knowledge.\n`;
-      prompt += `Make your advice friendly, actionable, and motivating!`;
-    } else if (leetcodeStats) {
+    if (leetcodeStats) {
       prompt += `LeetCode stats: Total Solved: ${leetcodeStats.totalSolved} out of ${leetcodeStats.totalQuestions} (Easy: ${leetcodeStats.easySolved}, Medium: ${leetcodeStats.mediumSolved}, Hard: ${leetcodeStats.hardSolved}).\n`;
       prompt += `\n1. Analyze the user's current skills and coding practice.\n2. Identify the most important skill gaps for a ${targetRole}.\n3. Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n4. Make your advice friendly, actionable, and motivating!`;
     } else {
@@ -73,21 +65,13 @@ Please provide an improved or modified LaTeX code based on the user's request.
   }
 
   // Handle Gemini recommendations (LeetCode + targetRole, or just targetRole)
-  const { leetcodeStats, leetcodeTopics, targetRole } = body;
+  const { leetcodeStats, targetRole } = body;
   if (!targetRole) {
     return NextResponse.json({ error: 'Missing targetRole' }, { status: 400 });
   }
-  let prompt = `You are a creative, encouraging career coach AI. The user wants to become a ${targetRole}.`;
-  if (leetcodeTopics && Array.isArray(leetcodeTopics) && leetcodeTopics.length > 0) {
-    prompt += `\nTheir LeetCode topic-wise stats are:`;
-    leetcodeTopics.forEach(t => {
-      prompt += `\n- ${t.tagName}: ${t.problemsSolved}`;
-    });
-    prompt += `\n1. Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness, focusing on weak topics.\n2. Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n3. Make your advice friendly and inspiring!`;
-  } else if (leetcodeStats) {
-    prompt += `\nTheir LeetCode stats are: Total Solved: ${leetcodeStats.totalSolved} out of ${leetcodeStats.totalQuestions} (Easy: ${leetcodeStats.easySolved}, Medium: ${leetcodeStats.mediumSolved}, Hard: ${leetcodeStats.hardSolved}).`;
-    prompt += `\n1. Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness.\n2. Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n3. Make your advice friendly and inspiring!`;
-  }
+  let prompt = `Analyze the user's LeetCode stats and skills for ${targetRole}.\n`;
+  prompt += `LeetCode stats: Total Solved: ${leetcodeStats?.totalSolved || 0}, Easy: ${leetcodeStats?.easySolved || 0}, Medium: ${leetcodeStats?.mediumSolved || 0}, Hard: ${leetcodeStats?.hardSolved || 0}.\n`;
+  prompt += `\n1. Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness.\n2. Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n3. Make your advice friendly and inspiring!`;
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });

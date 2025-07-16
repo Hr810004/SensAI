@@ -11,6 +11,8 @@ import QuizResult from "./quiz-result";
 import useFetch from "@/hooks/use-fetch";
 import { BarLoader } from "react-spinners";
 import PreQuizModal from "./pre-quiz-modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import * as faceapi from 'face-api.js';
 
 let faceapiLoaded = false;
 
@@ -369,6 +371,24 @@ export default function Quiz() {
     };
   }, [mediaStream, quizFinished]);
 
+  useEffect(() => {
+    async function loadModels() {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('/models/tiny_face_detector');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/models/face_landmark_68');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/models/face_recognition');
+        // Add more models if you use them
+        faceapiLoaded = true;
+      } catch (err) {
+        console.error('Failed to load face-api.js models:', err);
+        toast.error('Failed to load face detection models.');
+      }
+    }
+    if (!faceapiLoaded) {
+      loadModels();
+    }
+  }, []);
+
   if (preQuizOpen) {
     return <PreQuizModal open={preQuizOpen} onStart={handleStartQuiz} />;
   }
@@ -382,11 +402,21 @@ export default function Quiz() {
 
   if (quizFinished) {
     return (
-      <QuizResult
-        result={quizResult}
-        videoUrl={videoUrl}
-        onStartNew={() => window.location.reload()}
-      />
+      <Dialog open={quizFinished} onOpenChange={setQuizFinished}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quiz Result</DialogTitle>
+            <DialogDescription id="quiz-desc">
+              Here are your quiz results and feedback.
+            </DialogDescription>
+          </DialogHeader>
+          <QuizResult
+            result={quizResult}
+            videoUrl={videoUrl}
+            onStartNew={() => window.location.reload()}
+          />
+        </DialogContent>
+      </Dialog>
     );
   }
 
