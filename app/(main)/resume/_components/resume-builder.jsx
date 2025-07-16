@@ -115,13 +115,15 @@ export default function ResumeBuilder({ initialContent }) {
 \\section{Achievements}
 \\begin{itemize}[leftmargin=0.15in, label={}, itemsep=2pt, topsep=0pt]
   \\item[] \\small{
-    ${achievements.map(achievement => {
-      const text = achievement.text.replace(/([%_#&{}$])/g, '\\$1');
-      if (achievement.url) {
-        return `\\href{${achievement.url}}{${text}}`;
-      }
-      return text;
-    }).join(" \\\\\n    ")}
+    ${achievements.map(achievement =>
+      (achievement.points || []).map(pt => {
+        const text = pt.replace(/([%_#&{}$])/g, '\\$1');
+        if (achievement.url) {
+          return `\\href{${achievement.url}}{${text}}`;
+        }
+        return text;
+      }).join(" \\\\ ")
+    ).join(" \\\\ ")}
   }
 \\end{itemize}`
       : "";
@@ -179,7 +181,7 @@ ${education.map(edu => `    \\resumeSubheading
       {${edu.startDate || ""} -- ${edu.current ? "Present" : edu.endDate || ""}}
       {${edu.institution.replace(/([%_#&{}$])/g, '\\$1')}}
       {${[edu.fieldOfStudy, edu.gpa ? `GPA: ${edu.gpa}` : null].filter(Boolean).join(edu.fieldOfStudy && edu.gpa ? ' (' : '') + (edu.fieldOfStudy && edu.gpa ? ')' : '')}}
-      ${(edu.points && edu.points.length > 0) ? `\\resumeItemListStart\n${edu.points.map(pt => `        \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}\n      \\resumeItemListEnd` : ""}`
+      ${(edu.points && edu.points.length > 0) ? `\\resumeItemListStart\\n${edu.points.map(pt => `        \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}\\n      \\resumeItemListEnd` : ""}`
 ).join('\n')}
   \\resumeSubHeadingListEnd`
       : "";
@@ -198,7 +200,7 @@ ${education.map(edu => `    \\resumeSubheading
         return `\\textbf{${category.trim()}:} ${rest.join(':').trim()}`;
       }
       return text;
-    }).join(' \\\n    ')}
+    }).join(' \\\\n    ')}
   }
 \\end{itemize}`
       : "";
