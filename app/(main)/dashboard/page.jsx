@@ -58,7 +58,13 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    // Always fetch on first mount
     fetchData();
+    // Also fetch if sessionStorage flag is set (internal navigation)
+    if (typeof window !== 'undefined' && window.sessionStorage.getItem('forceDashboardReload')) {
+      fetchData();
+      window.sessionStorage.removeItem('forceDashboardReload');
+    }
   }, [pathname]);
 
   // (No window/tab focus event listener)

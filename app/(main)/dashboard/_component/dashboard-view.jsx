@@ -154,6 +154,14 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     }
   }, []);
 
+  // Load cached resume analysis on mount
+  useEffect(() => {
+    const cachedResumeAnalysis = localStorage.getItem('resumeAnalysis');
+    if (cachedResumeAnalysis) {
+      setResumeAnalysis(JSON.parse(cachedResumeAnalysis));
+    }
+  }, []);
+
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
     name: range.role,
@@ -255,6 +263,8 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     if (file) {
       setResumeLoading(true);
       try {
+        // Optionally clear cache before new upload
+        localStorage.removeItem('resumeAnalysis');
         // Send the image as FormData to the backend
         const formData = new FormData();
         formData.append('resumeImage', file);
@@ -270,7 +280,9 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
         });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
-        setResumeAnalysis(data.gap || data.recommendation);
+        const analysis = data.gap || data.recommendation;
+        setResumeAnalysis(analysis);
+        localStorage.setItem('resumeAnalysis', JSON.stringify(analysis));
         setResumeLoading(false);
         toast.success('Resume image uploaded and analyzed!');
       } catch (err) {

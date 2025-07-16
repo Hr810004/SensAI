@@ -250,36 +250,6 @@ export function EntryForm({ type, entries, onChange }) {
                   />
                   <label htmlFor="current">Current Education</label>
                 </div>
-                <div className="space-y-2">
-                  {[0, 1, 2, 3].map((idx) => {
-                    let placeholder = `Point ${idx + 1} (bullet)`;
-                    if (type === "Experience") {
-                      if (idx === 0) placeholder = "Key responsibility or achievement";
-                      if (idx === 1) placeholder = "Technology/tools used";
-                      if (idx === 2) placeholder = "Quantifiable impact/result";
-                      if (idx === 3) placeholder = "Future scope or learning";
-                    } else if (type === "Education") {
-                      if (idx === 0) placeholder = "Relevant coursework or subject";
-                      if (idx === 1) placeholder = "Project or achievement";
-                      if (idx === 2) placeholder = "Extracurricular or leadership";
-                      if (idx === 3) placeholder = "Future scope or learning";
-                    } else if (type === "Project") {
-                      if (idx === 0) placeholder = "Project goal or feature";
-                      if (idx === 1) placeholder = "Technology/tools used";
-                      if (idx === 2) placeholder = "Impact or result";
-                      if (idx === 3) placeholder = "Future scope or learning";
-                    }
-                    return (
-                      <Input
-                        key={idx}
-                        placeholder={placeholder}
-                        {...register(`points.${idx}`)}
-                        error={errors.points?.[idx]}
-                      />
-                    );
-                  })}
-                  <p className="text-xs text-muted-foreground mt-1">You can add up to 4 points. All are optional for education.</p>
-                </div>
               </>
             ) : (
               <>
@@ -395,6 +365,37 @@ export function EntryForm({ type, entries, onChange }) {
 
               </>
             )}
+            {/* Points input fields for all types */}
+            <div className="space-y-2">
+              {[0, 1, 2, 3].map((idx) => {
+                let placeholder = `Point ${idx + 1} (bullet)`;
+                if (type === "Experience") {
+                  if (idx === 0) placeholder = "Key responsibility or achievement";
+                  if (idx === 1) placeholder = "Technology/tools used";
+                  if (idx === 2) placeholder = "Quantifiable impact/result";
+                  if (idx === 3) placeholder = "Future scope or learning";
+                } else if (type === "Education") {
+                  if (idx === 0) placeholder = "Relevant coursework or subject";
+                  if (idx === 1) placeholder = "Project or achievement";
+                  if (idx === 2) placeholder = "Extracurricular or leadership";
+                  if (idx === 3) placeholder = "Future scope or learning";
+                } else if (type === "Project") {
+                  if (idx === 0) placeholder = "Project goal or feature";
+                  if (idx === 1) placeholder = "Technology/tools used";
+                  if (idx === 2) placeholder = "Impact or result";
+                  if (idx === 3) placeholder = "Future scope or learning";
+                }
+                return (
+                  <Input
+                    key={idx}
+                    placeholder={placeholder}
+                    {...register(`points.${idx}`)}
+                    error={errors.points?.[idx]}
+                  />
+                );
+              })}
+              <p className="text-xs text-muted-foreground mt-1">You can add up to 4 points. All are optional for education.</p>
+            </div>
           </CardContent>
           <CardFooter className="flex justify-end space-x-2">
             <Button
@@ -432,21 +433,20 @@ export function EntryForm({ type, entries, onChange }) {
 // AchievementForm component for handling achievements with optional links
 export function AchievementForm({ achievements, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
-  const [newAchievement, setNewAchievement] = useState({ text: "", url: "" });
+  const [newAchievement, setNewAchievement] = useState({ points: ["", "", "", ""], url: "" });
 
   const handleAdd = () => {
-    if (!newAchievement.text.trim()) {
-      toast.error("Achievement text is required");
+    const filteredPoints = (newAchievement.points || []).filter((p) => p && p.trim() !== "");
+    if (filteredPoints.length === 0) {
+      toast.error("At least one point is required");
       return;
     }
-
     if (newAchievement.url && !newAchievement.url.startsWith("http")) {
       toast.error("Please enter a valid URL starting with http:// or https://");
       return;
     }
-
-    onChange([...achievements, { ...newAchievement }]);
-    setNewAchievement({ text: "", url: "" });
+    onChange([...achievements, { points: filteredPoints, url: newAchievement.url }]);
+    setNewAchievement({ points: ["", "", "", ""], url: "" });
     setIsAdding(false);
   };
 
@@ -474,7 +474,11 @@ export function AchievementForm({ achievements, onChange }) {
               </Button>
             </CardHeader>
             <CardContent>
-              <p className="text-sm whitespace-pre-wrap">{achievement.text}</p>
+              <ul className="mt-2 list-disc ml-4 text-sm">
+                {achievement.points && achievement.points.map((pt, i) => (
+                  <li key={i}>{pt}</li>
+                ))}
+              </ul>
               {achievement.url && (
                 <p className="mt-2 text-sm text-blue-600">
                   <a href={achievement.url} target="_blank" rel="noopener noreferrer">
@@ -494,12 +498,20 @@ export function AchievementForm({ achievements, onChange }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Textarea
-                placeholder="Describe your achievement..."
-                value={newAchievement.text}
-                onChange={(e) => setNewAchievement({ ...newAchievement, text: e.target.value })}
-                className="h-32"
-              />
+              {[0, 1, 2, 3].map((idx) => (
+                <Input
+                  key={idx}
+                  placeholder={`Point ${idx + 1} (bullet)`}
+                  value={newAchievement.points[idx] || ""}
+                  onChange={(e) => {
+                    const updated = [...newAchievement.points];
+                    updated[idx] = e.target.value;
+                    setNewAchievement({ ...newAchievement, points: updated });
+                  }}
+                  className="h-10"
+                />
+              ))}
+              <p className="text-xs text-muted-foreground mt-1">You can add up to 4 points. At least one is required.</p>
             </div>
             <div className="space-y-2">
               <Input
@@ -515,7 +527,7 @@ export function AchievementForm({ achievements, onChange }) {
               type="button"
               variant="outline"
               onClick={() => {
-                setNewAchievement({ text: "", url: "" });
+                setNewAchievement({ points: ["", "", "", ""], url: "" });
                 setIsAdding(false);
               }}
             >
