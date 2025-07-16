@@ -121,3 +121,27 @@ body {
   height: 100%;
   background: radial-gradient(circle, transparent, rgba(0, 0, 0, 0.9));
 }
+
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+.markdown-content ul, .markdown-content ol {
+  margin-left: 1.5em;
+  margin-bottom: 1em;
+}
+.markdown-content li {
+  margin-bottom: 0.5em;
+  line-height: 1.7;
+}
+.markdown-content p {
+  margin-bottom: 1em;
+  line-height: 1.7;
+}
+.markdown-content strong {
+  font-weight: 600;
+}
+.markdown-content {
+  font-size: 1.05rem;
+  line-height: 1.7;
+}

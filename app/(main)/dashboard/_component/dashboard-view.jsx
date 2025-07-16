@@ -275,30 +275,6 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     <div className="space-y-6">
       {/* Edit Profile Section */}
       <EditProfile user={user} onProfileUpdated={handleProfileUpdated} />
-      <div className="flex justify-between items-center">
-        <Badge variant="outline">Last updated: {lastUpdatedDate}</Badge>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setError(null);
-            startTransition(async () => {
-              try {
-                const updated = await refreshIndustryInsights();
-                setInsights(updated);
-              } catch (e) {
-                setError("Failed to refresh industry insights.");
-              }
-            });
-          }}
-          disabled={isPending}
-        >
-          {isPending ? (
-            <><Loader2 className="animate-spin mr-2 h-4 w-4" />Refreshing...</>
-          ) : (
-            <>Refresh Insights</>
-          )}
-        </Button>
-      </div>
       {error && (
         <div className="text-red-600 text-center mb-2">{error}</div>
       )}
@@ -351,7 +327,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           {resumeAnalysis && (
             <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
               <div className="font-semibold text-primary mb-2">AI Resume Skill Gap Analysis</div>
-              <ReactMarkdown className="prose prose-invert max-w-none">{resumeAnalysis}</ReactMarkdown>
+              <ReactMarkdown className="prose prose-invert max-w-none markdown-content">{resumeAnalysis}</ReactMarkdown>
             </div>
           )}
         </CardContent>
@@ -383,7 +359,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           {skillGap && (
             <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
               <div className="font-semibold text-primary mb-2">AI Skill Gap Analysis</div>
-              <ReactMarkdown className="prose prose-invert max-w-none">{skillGap.gap}</ReactMarkdown>
+              <ReactMarkdown className="prose prose-invert max-w-none markdown-content">{skillGap.gap}</ReactMarkdown>
             </div>
           )}
         </CardContent>
@@ -401,7 +377,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           ) : leetcodeError ? (
             <div className="text-red-500">{leetcodeError}</div>
           ) : leetcodeStats ? (
-            <div className="space-y-2">
+            <div className="space-y-2 overflow-y-auto max-h-64">
               <div className="text-lg font-medium">
                 Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
               </div>
@@ -435,7 +411,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
               {geminiError ? (
                 <div className="text-red-500">{geminiError}</div>
               ) : geminiRec ? (
-                <ReactMarkdown className="prose prose-invert max-w-none">{geminiRec}</ReactMarkdown>
+                <ReactMarkdown className="prose prose-invert max-w-none markdown-content">{geminiRec}</ReactMarkdown>
               ) : (
                 <div className="text-muted-foreground">Loading recommendations...</div>
               )}
@@ -443,6 +419,32 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* After the LeetCode stats container, but before the salary graph/chart, insert the Refresh Insights button and last updated badge. */}
+      <div className="flex justify-between items-center">
+        <Badge variant="outline">Last updated: {lastUpdatedDate}</Badge>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setError(null);
+            startTransition(async () => {
+              try {
+                const updated = await refreshIndustryInsights();
+                setInsights(updated);
+              } catch (e) {
+                setError("Failed to refresh industry insights.");
+              }
+            });
+          }}
+          disabled={isPending}
+        >
+          {isPending ? (
+            <><Loader2 className="animate-spin mr-2 h-4 w-4" />Refreshing...</>
+          ) : (
+            <>Refresh Insights</>
+          )}
+        </Button>
+      </div>
 
       {/* Market Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -508,6 +510,44 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
         </Card>
       </div>
 
+      {/* Industry Trends */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Key Industry Trends</CardTitle>
+            <CardDescription>
+              Current trends shaping the industry
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-4">
+              {insights.keyTrends.map((trend, index) => (
+                <li key={index} className="flex items-start space-x-2">
+                  <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
+                  <span>{trend}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommended Skills</CardTitle>
+            <CardDescription>Skills to consider developing</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {insights.recommendedSkills.map((skill) => (
+                <Badge key={skill} variant="outline">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Salary Ranges Chart */}
       <Card className="col-span-4">
         <CardHeader>
@@ -548,44 +588,6 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Industry Trends */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Key Industry Trends</CardTitle>
-            <CardDescription>
-              Current trends shaping the industry
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-4">
-              {insights.keyTrends.map((trend, index) => (
-                <li key={index} className="flex items-start space-x-2">
-                  <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                  <span>{trend}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recommended Skills</CardTitle>
-            <CardDescription>Skills to consider developing</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {insights.recommendedSkills.map((skill) => (
-                <Badge key={skill} variant="outline">
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 };
