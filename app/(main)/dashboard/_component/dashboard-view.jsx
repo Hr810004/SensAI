@@ -34,6 +34,10 @@ import { Button } from "@/components/ui/button";
 import { refreshIndustryInsights } from "@/actions/dashboard";
 import EditProfile from "./edit-profile";
 import { toast } from "react-hot-toast";
+import ReactMarkdown from 'react-markdown';
+import { useRef } from 'react';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import 'pdfjs-dist/build/pdf.worker.entry';
 
 const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const [insights, setInsights] = useState(initialInsights);
@@ -49,6 +53,13 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const [geminiRec, setGeminiRec] = useState(null);
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [geminiError, setGeminiError] = useState(null);
+  const [showGeminiRec, setShowGeminiRec] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeText, setResumeText] = useState("");
+  const [resumeAnalysis, setResumeAnalysis] = useState(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeError, setResumeError] = useState(null);
+  const fileInputRef = useRef();
 
   // Fetch LeetCode stats
   const fetchLeetcodeStats = useCallback((username) => {
@@ -76,6 +87,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
 
   // Fetch Gemini recommendations
   const fetchGeminiRec = useCallback((targetRole) => {
+    localStorage.removeItem('geminiRec');
     setGeminiLoading(true);
     setGeminiError(null);
     setGeminiRec(null);
@@ -93,6 +105,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
       })
       .then((data) => {
         setGeminiRec(data.recommendation);
+        localStorage.setItem('geminiRec', JSON.stringify(data.recommendation));
         setGeminiLoading(false);
       })
       .catch((err) => {
@@ -117,9 +130,18 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     fetchLeetcodeStats(user.leetcodeUsername);
   }, [user.leetcodeUsername, fetchLeetcodeStats]);
 
+  // On mount, load cached skill gap and Gemini rec
   useEffect(() => {
-    fetchGeminiRec(user.targetRole);
-  }, [user.targetRole, fetchGeminiRec]);
+    const cachedSkillGap = localStorage.getItem('skillGap');
+    if (cachedSkillGap) {
+      setSkillGap(JSON.parse(cachedSkillGap));
+    }
+    const cachedGeminiRec = localStorage.getItem('geminiRec');
+    if (cachedGeminiRec) {
+      setGeminiRec(JSON.parse(cachedGeminiRec));
+      setShowGeminiRec(true);
+    }
+  }, []);
 
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
@@ -167,6 +189,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
 
   // Skill Gap Analysis handler
   const handleSkillGapAnalysis = async () => {
+    localStorage.removeItem('skillGap');
     setGapLoading(true);
     setGapError(null);
     setSkillGap(null);
@@ -184,6 +207,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setSkillGap(data);
+      localStorage.setItem('skillGap', JSON.stringify(data));
       setGapLoading(false);
     } catch (e) {
       setGapError("Failed to analyze skill gap.");
@@ -205,6 +229,67 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
       toast.success("Profile updated!");
     } catch (err) {
       toast.error("Failed to refresh profile after update");
+    }
+  };
+
+  // Placeholder for PDF/DOCX text extraction
+  const extractTextFromFile = async (file) => {
+    // Only allow PDF
+    if (file.type !== 'application/pdf') throw new Error('Only PDF files are supported.');
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text;
+  };
+
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files[0];
+    setResumeFile(file);
+    setResumeAnalysis(null);
+    setResumeError(null);
+    if (file) {
+      setResumeLoading(true);
+      try {
+        const text = await extractTextFromFile(file);
+        setResumeText(text);
+        setResumeLoading(false);
+        toast.success("Resume uploaded! Ready for analysis.");
+      } catch (err) {
+        setResumeError("Failed to extract text from resume.");
+        setResumeLoading(false);
+      }
+    }
+  };
+
+  const handleAnalyzeResume = async () => {
+    if (!resumeText) return;
+    setResumeLoading(true);
+    setResumeAnalysis(null);
+    setResumeError(null);
+    try {
+      const res = await fetch("/api/gemini-recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skillGap: true,
+          skills: user.skills,
+          targetRole: user.targetRole,
+          leetcodeStats,
+          resumeText,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setResumeAnalysis(data.gap || data.recommendation);
+      setResumeLoading(false);
+    } catch (e) {
+      setResumeError("Failed to analyze resume.");
+      setResumeLoading(false);
     }
   };
 
@@ -299,55 +384,101 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
         </CardContent>
       </Card>
 
-      {/* LeetCode Stats Section */}
-      {user.leetcodeUsername && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>LeetCode Progress</CardTitle>
-            <CardDescription>
-              Username: <span className="font-mono font-semibold">{user.leetcodeUsername}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {leetcodeLoading && <div>Loading LeetCode stats...</div>}
-            {leetcodeError && <div className="text-red-600">{leetcodeError}</div>}
-            {leetcodeStats && (
-              <div className="space-y-2">
-                <div className="text-lg font-medium">
-                  Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
-                </div>
-                <div className="flex gap-4 text-sm text-muted-foreground">
-                  <span>Easy: {leetcodeStats.easySolved}</span>
-                  <span>Medium: {leetcodeStats.mediumSolved}</span>
-                  <span>Hard: {leetcodeStats.hardSolved}</span>
-                </div>
+      {/* LeetCode Progress Section */}
+      <Card className="bg-muted/80 border-none shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-primary">LeetCode Progress</CardTitle>
+          <CardDescription className="text-muted-foreground">Username: {user.leetcodeUsername}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {leetcodeLoading ? (
+            <div className="text-center py-4">Loading LeetCode stats...</div>
+          ) : leetcodeError ? (
+            <div className="text-red-500">{leetcodeError}</div>
+          ) : leetcodeStats ? (
+            <div className="space-y-2">
+              <div className="text-lg font-medium">
+                Total Questions Solved: <span className="text-primary font-bold">{leetcodeStats.totalSolved}</span> out of <span className="font-semibold">{leetcodeStats.totalQuestions}</span>
               </div>
-            )}
-            {leetcodeStats === null && (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No LeetCode stats available for this user.</p>
-                <p>Please ensure your LeetCode username is set in your profile.</p>
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span>Easy: {leetcodeStats.easySolved}</span>
+                <span>Medium: {leetcodeStats.mediumSolved}</span>
+                <span>Hard: {leetcodeStats.hardSolved}</span>
               </div>
-            )}
-            {/* Gemini AI Recommendation */}
-            {leetcodeStats && (
-              <div className="mt-6">
-                <div className="font-semibold mb-2 text-indigo-700 flex items-center gap-2">
-                  <BookOpenIcon className="h-5 w-5" />
-                  Gemini AI Recommendations
-                </div>
-                {geminiLoading && <div>Loading recommendations...</div>}
-                {geminiError && <div className="text-red-600">{geminiError}</div>}
-                {geminiRec && (
-                  <div className="bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg p-4 text-indigo-900 shadow-sm animate-fade-in">
-                    {geminiRec}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => {
+                  setShowGeminiRec(true);
+                  fetchGeminiRec(user.targetRole);
+                }}
+                disabled={geminiLoading}
+              >
+                {geminiLoading ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Loading Recommendations...</> : <>Get Gemini AI Recommendations</>}
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No LeetCode stats available for this user.</p>
+              <p>Please ensure your LeetCode username is set in your profile.</p>
+            </div>
+          )}
+          {/* Gemini AI Recommendations Section */}
+          {showGeminiRec && (
+            <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted">
+              <div className="font-semibold text-primary mb-2">Gemini AI Recommendations</div>
+              {geminiError ? (
+                <div className="text-red-500">{geminiError}</div>
+              ) : geminiRec ? (
+                <ReactMarkdown className="prose prose-invert max-w-none">{geminiRec}</ReactMarkdown>
+              ) : (
+                <div className="text-muted-foreground">Loading recommendations...</div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      {/* Resume Upload and Analysis Section */}
+      <Card className="bg-muted/80 border-none shadow-lg mt-6">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-primary">Upload Resume for AI Analysis</CardTitle>
+          <CardDescription className="text-muted-foreground">Upload your resume (PDF only) to get a personalized skill gap analysis based on your actual experience!</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <input
+            type="file"
+            accept=".pdf"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleResumeUpload}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            disabled={resumeLoading}
+            className="mb-2"
+          >
+            {resumeLoading ? 'Uploading...' : resumeFile ? 'Change Resume' : 'Upload Resume (PDF)'}
+          </Button>
+          {resumeFile && !resumeLoading && (
+            <Button
+              variant="default"
+              onClick={handleAnalyzeResume}
+              className="ml-2"
+              disabled={resumeLoading || !resumeText}
+            >
+              {resumeLoading ? 'Analyzing...' : 'Analyze Resume'}
+            </Button>
+          )}
+          {resumeError && <div className="text-red-500 mt-2">{resumeError}</div>}
+          {resumeAnalysis && (
+            <div className="mt-6 bg-background/80 rounded-lg p-4 border border-muted max-h-96 overflow-y-auto">
+              <div className="font-semibold text-primary mb-2">AI Resume Skill Gap Analysis</div>
+              <ReactMarkdown className="prose prose-invert max-w-none">{resumeAnalysis}</ReactMarkdown>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Market Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

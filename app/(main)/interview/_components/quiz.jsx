@@ -399,6 +399,9 @@ export default function Quiz() {
 
   const sectionNames = Object.keys(quizSections);
   const subsectionNames = Object.keys(quizSections[currentSection]);
+  const totalQuestions = quizData.length;
+  const currentQuestion = quizData[currentQuestionIdx];
+  const inputType = getInputType(currentSection, currentSubsection);
 
   if (quizFinished) {
     return (

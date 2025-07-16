@@ -37,27 +37,27 @@ Please provide an improved or modified LaTeX code based on the user's request.
 
   // Handle skill gap analysis
   if (body.skillGap) {
-    const { skills, targetRole, leetcodeStats } = body;
+    const { skills, targetRole, leetcodeStats, resumeText } = body;
     if (!targetRole) {
       return NextResponse.json({ error: 'Missing targetRole for skill gap analysis' }, { status: 400 });
     }
-    let prompt = `You are an expert career coach AI. The user wants to become a ${targetRole}.
+    let prompt = `You are an expert, friendly career coach AI. Analyze the user's readiness for the role of **${targetRole}**.
 `;
     if (skills && skills.length > 0) {
-      prompt += `Their current skills: ${Array.isArray(skills) ? skills.join(", ") : skills}\n`;
+      prompt += `\n**Current Skills:** ${Array.isArray(skills) ? skills.join(", ") : skills}`;
     }
     if (leetcodeStats) {
-      prompt += `LeetCode stats: Total Solved: ${leetcodeStats.totalSolved} out of ${leetcodeStats.totalQuestions} (Easy: ${leetcodeStats.easySolved}, Medium: ${leetcodeStats.mediumSolved}, Hard: ${leetcodeStats.hardSolved}).\n`;
-      prompt += `\n1. Analyze the user's current skills and coding practice.\n2. Identify the most important skill gaps for a ${targetRole}.\n3. Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n4. Make your advice friendly, actionable, and motivating!`;
-    } else {
-      prompt += `\n1. Analyze the user's current skills and coding practice.\n2. Identify the most important skill gaps for a ${targetRole}.\n3. Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n4. Make your advice friendly, actionable, and motivating!`;
+      prompt += `\n**LeetCode Stats:** Total Solved: ${leetcodeStats.totalSolved} out of ${leetcodeStats.totalQuestions} (Easy: ${leetcodeStats.easySolved}, Medium: ${leetcodeStats.mediumSolved}, Hard: ${leetcodeStats.hardSolved})`;
     }
+    if (resumeText) {
+      prompt += `\n**Resume:**\n${resumeText}`;
+    }
+    prompt += `\n\n---\n\n**Instructions:**\n- Start with a short, friendly greeting.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's current skills, coding practice, and resume.\n- Identify the most important skill gaps for a ${targetRole}.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      // Optionally, parse out recommendations if Gemini returns them as a list
       return NextResponse.json({ gap: response.text().trim(), recommendations: [] });
     } catch (e) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -65,13 +65,16 @@ Please provide an improved or modified LaTeX code based on the user's request.
   }
 
   // Handle Gemini recommendations (LeetCode + targetRole, or just targetRole)
-  const { leetcodeStats, targetRole } = body;
+  const { leetcodeStats, targetRole, resumeText } = body;
   if (!targetRole) {
     return NextResponse.json({ error: 'Missing targetRole' }, { status: 400 });
   }
-  let prompt = `Analyze the user's LeetCode stats and skills for ${targetRole}.\n`;
-  prompt += `LeetCode stats: Total Solved: ${leetcodeStats?.totalSolved || 0}, Easy: ${leetcodeStats?.easySolved || 0}, Medium: ${leetcodeStats?.mediumSolved || 0}, Hard: ${leetcodeStats?.hardSolved || 0}.\n`;
-  prompt += `\n1. Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness.\n2. Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n3. Make your advice friendly and inspiring!`;
+  let prompt = `You are an expert, friendly career coach AI. Analyze the user's LeetCode stats${resumeText ? ' and resume' : ''} for the role of **${targetRole}**.\n`;
+  prompt += `\n**LeetCode Stats:** Total Solved: ${leetcodeStats?.totalSolved || 0}, Easy: ${leetcodeStats?.easySolved || 0}, Medium: ${leetcodeStats?.mediumSolved || 0}, Hard: ${leetcodeStats?.hardSolved || 0}.`;
+  if (resumeText) {
+    prompt += `\n**Resume:**\n${resumeText}`;
+  }
+  prompt += `\n\n---\n\n**Instructions:**\n- Use markdown for all formatting (headings, bold, lists).\n- Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness.\n- Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n- Make your advice concise, visually clear, and inspiring.\n- Start with a friendly greeting and end with a motivating closing.`;
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
