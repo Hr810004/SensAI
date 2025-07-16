@@ -49,14 +49,14 @@ export function EntryForm({ type, entries, onChange }) {
           startDate: "",
           endDate: "",
           current: false,
-          description: "",
+          points: ["", "", "", ""], // Up to 4 points, optional for education
         }
       : {
           title: "",
           organization: "",
           startDate: "",
           endDate: "",
-          description: "",
+          points: ["", "", "", ""], // Up to 4 points
           current: false,
           links: [],
         },
@@ -64,6 +64,7 @@ export function EntryForm({ type, entries, onChange }) {
 
   const current = watch("current");
   const links = watch("links") || [];
+  const points = watch("points") || ["", "", "", ""];
 
   const handleAdd = handleValidation((data) => {
     const formattedEntry = {
@@ -71,6 +72,7 @@ export function EntryForm({ type, entries, onChange }) {
       startDate: formatDisplayDate(data.startDate),
       endDate: data.current ? "" : formatDisplayDate(data.endDate),
       links: data.links || [], // Include links in the entry
+      points: (data.points || []).filter((p) => p && p.trim() !== ""),
     };
 
     onChange([...entries, formattedEntry]);
@@ -179,9 +181,13 @@ export function EntryForm({ type, entries, onChange }) {
                   </div>
                 </div>
               )}
-              <p className="mt-2 text-sm whitespace-pre-wrap">
-                {item.description}
-              </p>
+              {item.points && item.points.length > 0 && (
+                <ul className="mt-2 list-disc ml-4 text-sm">
+                  {item.points.map((pt, i) => (
+                    <li key={i}>{pt}</li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -284,6 +290,30 @@ export function EntryForm({ type, entries, onChange }) {
                   {errors.description && (
                     <p className="text-sm text-red-500">{errors.description.message}</p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  {[0, 1, 2, 3].map((idx) => (
+                    <Input
+                      key={idx}
+                      placeholder={
+                        idx === 0
+                          ? "Main achievement or focus (optional)"
+                          : idx === 1
+                          ? "Key project, research, or leadership (optional)"
+                          : idx === 2
+                          ? "Relevant coursework or award (optional)"
+                          : "Other highlight (optional)"
+                      }
+                      value={points[idx] || ""}
+                      onChange={(e) => {
+                        const newPoints = [...points];
+                        newPoints[idx] = e.target.value;
+                        setValue("points", newPoints);
+                      }}
+                      maxLength={200}
+                    />
+                  ))}
+                  <p className="text-xs text-muted-foreground mt-1">You can add up to 4 points. All are optional for education.</p>
                 </div>
               </>
             ) : (

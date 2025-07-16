@@ -55,9 +55,9 @@ model Resume {
 
   // Resume Sections
   skills       String @db.Text
-  experience   Json[] // Array of { title, organization, startDate, endDate, description, current }
-  education    Json[] // Array of { degree, institution, fieldOfStudy?, startDate, endDate, current, description?, gpa? }
-  projects     Json[] // Array of { title, organization, startDate, endDate, description, current, links: [{label, url}] }
+  experience   Json[] // Array of { title, organization, startDate, endDate, current }
+  education    Json[] // Array of { degree, institution, fieldOfStudy?, startDate, endDate, current, gpa? }
+  projects     Json[] // Array of { title, organization, startDate, endDate, current, links: [{label, url}] }
   achievements Json[] // Array of { text, url? }
 
   // Legacy field for backward compatibility

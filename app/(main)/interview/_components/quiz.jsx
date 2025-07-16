@@ -44,6 +44,13 @@ export default function Quiz() {
   const [quizResult, setQuizResult] = useState(null);
   const [tabSwitches, setTabSwitches] = useState(0);
   const [isTabActive, setIsTabActive] = useState(true);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const audioSourceRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const [timer, setTimer] = useState(0);
+  const timerIntervalRef = useRef(null);
 
   const { loading: generatingQuiz, fn: generateQuizFn, data: quizData } = useFetch(generateQuiz);
   const { loading: savingResult, fn: saveQuizResultFn, data: resultData, setData: setResultData } = useFetch(saveQuizResult);
@@ -85,6 +92,36 @@ export default function Quiz() {
       }
     };
   }, [preQuizOpen]);
+
+  useEffect(() => {
+    if (mediaStream) {
+      // Set up audio context and analyser for audio level tracking
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      audioSourceRef.current = audioContextRef.current.createMediaStreamSource(mediaStream);
+      audioSourceRef.current.connect(analyserRef.current);
+      analyserRef.current.fftSize = 256;
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const updateAudioLevel = () => {
+        analyserRef.current.getByteFrequencyData(dataArray);
+        // Use average volume as level
+        const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
+        setAudioLevel(avg);
+        animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
+      };
+      updateAudioLevel();
+    }
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [mediaStream]);
 
   useEffect(() => {
     const handleTabSwitch = () => {
@@ -390,6 +427,31 @@ export default function Quiz() {
     }
   }, []);
 
+  // Start timer when quizSections are set (questions rendered)
+  useEffect(() => {
+    if (quizSections && !quizFinished) {
+      setTimer(0);
+      timerIntervalRef.current = setInterval(() => {
+        setTimer((prev) => prev + 1);
+      }, 1000);
+    }
+    if (quizFinished && timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [quizSections, quizFinished]);
+
+  // Format timer as mm:ss
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   if (preQuizOpen) {
     return <PreQuizModal open={preQuizOpen} onStart={handleStartQuiz} />;
   }
@@ -437,9 +499,64 @@ export default function Quiz() {
   }
 
   return (
-    <div className="mx-2">
+    <div className="mx-2 relative">
+      {/* Timer on top right */}
+      {quizSections && !quizFinished && (
+        <div className="absolute top-2 right-4 z-20 bg-muted px-4 py-2 rounded shadow text-lg font-mono">
+          ⏱️ {formatTime(timer)}
+        </div>
+      )}
+      {/* Show video/audio check while quiz is loading */}
+      {generatingQuiz && mediaStream && (
+        <div className="flex flex-col items-center justify-center min-h-[300px]">
+          {/* Audio Level Bar */}
+          <div className="mb-2 w-full max-w-xs">
+            <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
+            <div className="w-full h-2 bg-muted rounded">
+              <div
+                className="h-2 bg-green-500 rounded transition-all"
+                style={{ width: `${Math.min(100, (audioLevel / 128) * 100)}%` }}
+              />
+            </div>
+          </div>
+          {/* Video Preview */}
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-48 h-36 rounded shadow border"
+            style={{ objectFit: "cover" }}
+          />
+          <div className="mt-4">
+            <BarLoader color="#4ade80" width={200} />
+            <div className="text-sm text-muted-foreground mt-2">
+              Preparing your quiz...
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Audio Level Bar and Timer on the same line */}
+      {mediaStream && !quizFinished && !generatingQuiz && (
+        <div className="mb-2 flex items-center justify-between w-full max-w-lg">
+          <div className="flex-1 mr-4">
+            <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
+            <div className="w-full h-2 bg-muted rounded">
+              <div
+                className="h-2 bg-green-500 rounded transition-all"
+                style={{ width: `${Math.min(100, (audioLevel / 128) * 100)}%` }}
+              />
+            </div>
+          </div>
+          {quizSections && !quizFinished && (
+            <div className="text-lg font-mono bg-muted px-4 py-2 rounded shadow whitespace-nowrap">
+              ⏱️ {formatTime(timer)}
+            </div>
+          )}
+        </div>
+      )}
       {/* Video Preview - always visible when mediaStream is available and quiz is not finished */}
-      {mediaStream && !quizFinished && (
+      {mediaStream && !quizFinished && !generatingQuiz && (
         <div className="flex justify-center mb-4">
           <video
             ref={videoRef}
@@ -453,7 +570,7 @@ export default function Quiz() {
         </div>
       )}
       {/* Fallback if webcam is not accessible */}
-      {!mediaStream && !quizFinished && (
+      {!mediaStream && !quizFinished && !generatingQuiz && (
         <div className="mb-4 text-center text-red-600 font-semibold">
           Webcam not accessible. Please enable your webcam for video preview and face detection.
         </div>

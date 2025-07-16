@@ -173,12 +173,9 @@ const OnboardingForm = ({ industries }) => {
               <Label htmlFor="skills">Skills</Label>
               <Input
                 id="skills"
-                placeholder="e.g., Python, JavaScript, Project Management"
+                placeholder="Enter up to 5 skills in the format Category: Skill1, Skill2"
                 {...register("skills")}
               />
-              <p className="text-sm text-muted-foreground">
-                Separate multiple skills with commas
-              </p>
               {errors.skills && (
                 <p className="text-sm text-red-500">{errors.skills.message}</p>
               )}

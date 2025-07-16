@@ -49,7 +49,6 @@ export const entrySchema = z
     organization: z.string().min(1, "Organization is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().optional(),
-    description: z.string().min(1, "Description is required"),
     current: z.boolean().default(false),
     links: z.array(linkSchema).optional(), // Optional links for projects
   })
@@ -86,7 +85,7 @@ export const educationEntrySchema = z.object({
 
 export const resumeSchema = z.object({
   contactInfo: contactSchema,
-  skills: z.string().min(1, "Skills are required"),
+  skills: z.array(z.object({ text: z.string().min(1, "Skill is required") })).min(1, "At least one skill is required").max(5, "Maximum 5 skills allowed"),
   experience: z.array(entrySchema),
   education: z.array(educationEntrySchema), 
   projects: z.array(entrySchema),

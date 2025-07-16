@@ -38,7 +38,7 @@ export default function ResumeBuilder({ initialContent }) {
     resolver: zodResolver(resumeSchema),
     defaultValues: {
       contactInfo: {},
-      skills: "",
+      skills: [],
       experience: [],
       education: [],
       projects: [],
@@ -62,7 +62,7 @@ export default function ResumeBuilder({ initialContent }) {
           // Reset form with existing data
           reset({
             contactInfo: resume.contactInfo || {},
-            skills: resume.skills || "",
+            skills: resume.skills || [],
             experience: resume.experience || [],
             education: resume.education || [],
             projects: resume.projects || [],
@@ -106,7 +106,7 @@ export default function ResumeBuilder({ initialContent }) {
 
   // Helper: Convert form data to LaTeX (updated with proper template and links)
   const formToLatex = (formData) => {
-    const { contactInfo = {}, skills = "", experience = [], education = [], projects = [], achievements = [] } = formData;
+    const { contactInfo = {}, skills = [], experience = [], education = [], projects = [], achievements = [] } = formData;
     
     // Generate LaTeX for achievements with optional links
     const achievementsLatex = achievements.length > 0
@@ -147,7 +147,7 @@ ${projects.map(project => {
   return `   \\resumeProjectHeading
       {\\textbf{${title}} $|$ ${techStack}${projectLinks}}{${date}}
   \\resumeItemListStart
-     \\resumeItem{${project.description.replace(/([%_#&{}$])/g, '\\$1')}}
+${(project.points || []).map(pt => `     \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}
   \\resumeItemListEnd`;
 }).join('\n')}
   \\resumeSubHeadingListEnd`
@@ -163,7 +163,7 @@ ${experience.map(exp => `    \\resumeSubheading
       {${exp.title.replace(/([%_#&{}$])/g, '\\$1')}} {${exp.startDate || ""} -- ${exp.current ? "Present" : exp.endDate || ""}}
       {${exp.organization.replace(/([%_#&{}$])/g, '\\$1')}}{}
       \\resumeItemListStart
-        \\resumeItem{${exp.description.replace(/([%_#&{}$])/g, '\\$1')}}
+${(exp.points || []).map(pt => `        \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}
       \\resumeItemListEnd`).join('\n')}
   \\resumeSubHeadingListEnd`
       : "";
@@ -174,25 +174,31 @@ ${experience.map(exp => `    \\resumeSubheading
 %-----------EDUCATION-----------
 \\section{Education}
   \\resumeSubHeadingListStart
-${education.map(edu => `    
-  \\resumeSubheading
-    {${edu.degree.replace(/([%_#&{}$])/g, '\\$1')}}
-    {${edu.startDate || ""} -- ${edu.current ? "Present" : edu.endDate || ""}}
-    {${edu.institution.replace(/([%_#&{}$])/g, '\\$1')}}
-    {${[edu.fieldOfStudy, edu.gpa ? `GPA: ${edu.gpa}` : null].filter(Boolean).join(edu.fieldOfStudy && edu.gpa ? ' (': '') + (edu.fieldOfStudy && edu.gpa ? ')' : '')}}
-  ${edu.description ? `\\resumeItemListStart\\n    \\resumeItem{${edu.description.replace(/([%_#&{}$])/g, '\\$1')}}\\n  \\resumeItemListEnd` : ""}`
+${education.map(edu => `    \\resumeSubheading
+      {${edu.degree.replace(/([%_#&{}$])/g, '\\$1')}}
+      {${edu.startDate || ""} -- ${edu.current ? "Present" : edu.endDate || ""}}
+      {${edu.institution.replace(/([%_#&{}$])/g, '\\$1')}}
+      {${[edu.fieldOfStudy, edu.gpa ? `GPA: ${edu.gpa}` : null].filter(Boolean).join(edu.fieldOfStudy && edu.gpa ? ' (' : '') + (edu.fieldOfStudy && edu.gpa ? ')' : '')}}
+      ${(edu.points && edu.points.length > 0) ? `\\resumeItemListStart\n${edu.points.map(pt => `        \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}\n      \\resumeItemListEnd` : ""}`
 ).join('\n')}
   \\resumeSubHeadingListEnd`
       : "";
 
     // Generate LaTeX for skills
-    const skillsLatex = skills
+    const skillsLatex = skills.length > 0
       ? `
 %-----------TECHNICAL SKILLS-----------
 \\section{Technical Skills and Interests}
 \\begin{itemize}[leftmargin=0.15in, label={}, itemsep=1pt, topsep=0pt]
   \\item[] \\small{
-    ${skills.replace(/([%_#&{}$])/g, '\\$1')}
+    ${skills.map(skill => {
+      const text = skill.text.replace(/([%_#&{}$])/g, '\\$1');
+      if (text.includes(':')) {
+        const [category, ...rest] = text.split(':');
+        return `\\textbf{${category.trim()}:} ${rest.join(':').trim()}`;
+      }
+      return text;
+    }).join(' \\\n    ')}
   }
 \\end{itemize}`
       : "";
@@ -374,7 +380,7 @@ ${achievementsLatex}
     const { skills, experience, education, projects } = formValues;
     return [
       getContactMarkdown(),
-      skills && `## Skills\n\n${skills}`,
+      skills && `## Skills\n\n${skills.map(skill => `- ${skill.text}`).join('\n')}`,
       entriesToMarkdown(experience, "Work Experience"),
       entriesToMarkdown(education, "Education"),
       entriesToMarkdown(projects, "Projects"),
@@ -636,12 +642,32 @@ ${achievementsLatex}
                   name="skills"
                   control={control}
                   render={({ field }) => (
-                    <Textarea
-                      {...field}
-                      className="h-32"
-                      placeholder="List your key skills..."
-                      error={errors.skills}
-                    />
+                    <div className="space-y-2">
+                      {field.value.map((skill, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input
+                            {...register(`skills.${index}.text`)}
+                            placeholder="e.g., Programming Languages: JavaScript, Python"
+                            error={errors.skills?.[index]?.text}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => field.onChange(field.value.filter((_, i) => i !== index))}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        onClick={() => field.onChange([...field.value, { text: "" }])
+                        }
+                        disabled={field.value.length >= 5}
+                      >
+                        Add Skill
+                      </Button>
+                    </div>
                   )}
                 />
                 {errors.skills && (

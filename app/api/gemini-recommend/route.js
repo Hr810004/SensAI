@@ -33,7 +33,7 @@ export async function POST(req) {
       } else {
         prompt += ' for the role they are targeting.';
       }
-      prompt += `\n\n---\n\n**Instructions:**\n- Start with a short, friendly greeting.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's experience, skills, and education from the resume image.\n- Identify the most important skill gaps for their target company and role.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
+      prompt += `\n\n---\n\n**Instructions:**\n- Use section headings with relevant emojis (e.g., '✅ Strengths', '🎯 Areas for Growth', '🛠️ Action Plan', '💡 Recommended Resources', '🚀 Next Steps').\n- For inner points, use either bullet points (with or without emojis) or numbered lists, whichever is most readable for the content.\n- Add a blank line between each bullet/numbered point and section for readability.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's experience, skills, and education from the resume image.\n- Identify the most important skill gaps for their target company and role.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
       // Send the prompt and image to Gemini
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
@@ -98,7 +98,7 @@ Please provide an improved or modified LaTeX code based on the user's request.
     if (resumeText) {
       prompt += `\n**Resume:**\n${resumeText}`;
     }
-    prompt += `\n\n---\n\n**Instructions:**\n- Start with a short, friendly greeting.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's current skills, coding practice, and resume.\n- Identify the most important skill gaps for a ${targetRole}.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
+    prompt += `\n\n---\n\n**Instructions:**\n- Use section headings with relevant emojis (e.g., '✅ Strengths', '🎯 Areas for Growth', '🛠️ Action Plan', '💡 Recommended Resources', '🚀 Next Steps').\n- For inner points, use either bullet points (with or without emojis) or numbered lists, whichever is most readable for the content.\n- Add a blank line between each bullet/numbered point and section for readability.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's current skills, coding practice, and resume.\n- Identify the most important skill gaps for a ${targetRole}.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
@@ -120,7 +120,7 @@ Please provide an improved or modified LaTeX code based on the user's request.
   if (resumeText) {
     prompt += `\n**Resume:**\n${resumeText}`;
   }
-  prompt += `\n\n---\n\n**Instructions:**\n- Use markdown for all formatting (headings, bold, lists).\n- Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness.\n- Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n- Make your advice concise, visually clear, and inspiring.\n- Start with a friendly greeting and end with a motivating closing.`;
+  prompt += `\n\n---\n\n**Instructions:**\n- Use section headings with relevant emojis (e.g., '✅ Strengths', '🎯 Areas for Growth', '🛠️ Action Plan', '💡 Recommended Resources', '🚀 Next Steps').\n- For inner points, use either bullet points (with or without emojis) or numbered lists, whichever is most readable for the content.\n- Add a blank line between each bullet/numbered point and section for readability.\n- Use markdown for all formatting (headings, bold, lists).\n- Give 2-3 specific, actionable, and creative recommendations to improve their coding interview readiness.\n- Suggest a fun or motivational next step (e.g., a challenge, a resource, or a positive affirmation).\n- Make your advice concise, visually clear, and inspiring.\n- Start with a friendly greeting and end with a motivating closing.`;
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
