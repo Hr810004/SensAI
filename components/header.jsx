@@ -38,7 +38,7 @@ export default async function Header() {
         {/* Action Buttons */}
         <div className="flex items-center space-x-2 md:space-x-4">
           <SignedIn>
-            <Link href="/dashboard">
+            <Link href={`/dashboard?refresh=${Date.now()}`}>
               <Button
                 variant="outline"
                 className="hidden md:inline-flex items-center gap-2"
