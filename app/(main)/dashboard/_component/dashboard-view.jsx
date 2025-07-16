@@ -36,8 +36,6 @@ import EditProfile from "./edit-profile";
 import { toast } from "react-hot-toast";
 import ReactMarkdown from 'react-markdown';
 import { useRef } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/build/pdf';
-import 'pdfjs-dist/build/pdf.worker.entry';
 
 const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const [insights, setInsights] = useState(initialInsights);
@@ -236,6 +234,9 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
   const extractTextFromFile = async (file) => {
     // Only allow PDF
     if (file.type !== 'application/pdf') throw new Error('Only PDF files are supported.');
+    if (typeof window === 'undefined') throw new Error('PDF parsing only supported in browser.');
+    const pdfjsLib = await import('pdfjs-dist/build/pdf');
+    await import('pdfjs-dist/build/pdf.worker.entry');
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let text = '';
