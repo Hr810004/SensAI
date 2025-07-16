@@ -6,23 +6,24 @@ export async function POST(req) {
   const contentType = req.headers.get('content-type') || '';
   if (contentType.includes('multipart/form-data')) {
     const formData = await req.formData();
-    const file = formData.get('resume');
+    const image = formData.get('resumeImage');
     const targetCompany = formData.get('targetCompany');
     const targetRole = formData.get('targetRole');
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    if (!image) {
+      return NextResponse.json({ error: 'No image uploaded' }, { status: 400 });
+    }
+    // Only allow PNG, JPG, JPEG
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(image.type)) {
+      return NextResponse.json({ error: 'Only PNG, JPG, and JPEG images are allowed.' }, { status: 400 });
     }
     try {
-      // Read the file as a buffer
-      const arrayBuffer = await file.arrayBuffer();
+      // Read the image as a buffer and encode as base64
+      const arrayBuffer = await image.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      // Send the file to Gemini for analysis
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-      // Gemini's API expects a File object, so we create one
-      const geminiFile = new File([buffer], file.name, { type: file.type });
+      const base64 = buffer.toString('base64');
       // Compose the prompt for resume analysis
-      let prompt = `You are an expert, friendly career coach AI. Analyze the user's resume (PDF attached)`;
+      let prompt = `You are an expert, friendly career coach AI. Analyze the user's resume (image attached)`;
       if (targetCompany && targetRole) {
         prompt += ` for a role at **${targetCompany}** as **${targetRole}**`;
       } else if (targetCompany) {
@@ -32,11 +33,13 @@ export async function POST(req) {
       } else {
         prompt += ' for the role they are targeting.';
       }
-      prompt += `\n\n---\n\n**Instructions:**\n- Start with a short, friendly greeting.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's experience, skills, and education from the resume.\n- Identify the most important skill gaps for their target company and role.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
-      // Send the file and prompt to Gemini
+      prompt += `\n\n---\n\n**Instructions:**\n- Start with a short, friendly greeting.\n- Use markdown for all formatting (headings, bold, lists).\n- Analyze the user's experience, skills, and education from the resume image.\n- Identify the most important skill gaps for their target company and role.\n- Recommend a personalized learning path (with 2-3 specific resources, e.g., courses, books, or websites).\n- Make your advice concise, visually clear, and motivating.\n- End with a motivating closing.\n`;
+      // Send the prompt and image to Gemini
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
       const result = await model.generateContent([
         { text: prompt },
-        { file: geminiFile }
+        { inlineData: { mimeType: image.type, data: base64 } }
       ]);
       const response = await result.response;
       return NextResponse.json({ gap: response.text().trim() });

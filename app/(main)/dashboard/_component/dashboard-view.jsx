@@ -242,14 +242,14 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
     if (file) {
       setResumeLoading(true);
       try {
-        // Send the file as FormData to the backend
+        // Send the image as FormData to the backend
         const formData = new FormData();
-        formData.append('resume', file);
-        if (resumeTargetCompany) {
-          formData.append('targetCompany', resumeTargetCompany);
-        }
+        formData.append('resumeImage', file);
         if (resumeTargetRole) {
           formData.append('targetRole', resumeTargetRole);
+        }
+        if (resumeTargetCompany) {
+          formData.append('targetCompany', resumeTargetCompany);
         }
         const res = await fetch('/api/gemini-recommend', {
           method: 'POST',
@@ -259,9 +259,9 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
         const data = await res.json();
         setResumeAnalysis(data.gap || data.recommendation);
         setResumeLoading(false);
-        toast.success('Resume uploaded and analyzed!');
+        toast.success('Resume image uploaded and analyzed!');
       } catch (err) {
-        setResumeError('Failed to analyze resume.');
+        setResumeError('Failed to analyze resume image.');
         setResumeLoading(false);
       }
     }
@@ -304,21 +304,10 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
       {/* Resume Upload and Analysis Section (moved up) */}
       <Card className="bg-muted/80 border-none shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-primary">Upload Resume for AI Analysis</CardTitle>
-          <CardDescription className="text-muted-foreground">Upload your resume (PDF only) to get a personalized skill gap analysis based on your actual experience!</CardDescription>
+          <CardTitle className="text-xl font-bold text-primary">Upload Resume Image for AI Analysis</CardTitle>
+          <CardDescription className="text-muted-foreground">Upload an image of your resume (PNG, JPG, JPEG) to get a personalized skill gap analysis based on your actual experience!</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <label htmlFor="resume-target-company" className="block text-sm font-medium text-primary mb-1">Target Company (optional)</label>
-            <input
-              id="resume-target-company"
-              type="text"
-              value={resumeTargetCompany}
-              onChange={e => setResumeTargetCompany(e.target.value)}
-              placeholder="e.g. Google, Microsoft, etc."
-              className="w-full px-3 py-2 border rounded-md bg-background text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          </div>
           <div className="mb-4">
             <label htmlFor="resume-target-role" className="block text-sm font-medium text-primary mb-1">Target Role (optional)</label>
             <input
@@ -330,9 +319,20 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
               className="w-full px-3 py-2 border rounded-md bg-background text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
+          <div className="mb-4">
+            <label htmlFor="resume-target-company" className="block text-sm font-medium text-primary mb-1">Target Company (optional)</label>
+            <input
+              id="resume-target-company"
+              type="text"
+              value={resumeTargetCompany}
+              onChange={e => setResumeTargetCompany(e.target.value)}
+              placeholder="e.g. Google, Microsoft, etc."
+              className="w-full px-3 py-2 border rounded-md bg-background text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
           <input
             type="file"
-            accept=".pdf"
+            accept=".png,.jpg,.jpeg"
             ref={fileInputRef}
             style={{ display: 'none' }}
             onChange={handleResumeUpload}
@@ -343,7 +343,7 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
             disabled={resumeLoading}
             className="mb-2"
           >
-            {resumeLoading ? 'Uploading...' : resumeFile ? 'Change Resume' : 'Upload Resume (PDF)'}
+            {resumeLoading ? 'Uploading...' : resumeFile ? 'Change Resume Image' : 'Upload Resume Image (PNG, JPG, JPEG)'}
           </Button>
           {resumeError && <div className="text-red-500 mt-2">{resumeError}</div>}
           {resumeAnalysis && (
