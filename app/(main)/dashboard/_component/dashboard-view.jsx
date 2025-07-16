@@ -232,11 +232,10 @@ const DashboardView = ({ insights: initialInsights, user: initialUser }) => {
 
   // Placeholder for PDF/DOCX text extraction
   const extractTextFromFile = async (file) => {
-    // Only allow PDF
     if (file.type !== 'application/pdf') throw new Error('Only PDF files are supported.');
     if (typeof window === 'undefined') throw new Error('PDF parsing only supported in browser.');
     const pdfjsLib = await import('pdfjs-dist/build/pdf');
-    await import('pdfjs-dist/build/pdf.worker.entry');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let text = '';
