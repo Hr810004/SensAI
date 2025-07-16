@@ -86,37 +86,7 @@ export function EntryForm({ type, entries, onChange }) {
     onChange(newEntries);
   };
 
-  const {
-    loading: isImproving,
-    fn: improveWithAIFn,
-    data: improvedContent,
-    error: improveError,
-  } = useFetch(improveWithAI);
-
-  // Add this effect to handle the improvement result
-  useEffect(() => {
-    if (improvedContent && !isImproving) {
-      setValue("description", improvedContent);
-      toast.success("Description improved successfully!");
-    }
-    if (improveError) {
-      toast.error(improveError.message || "Failed to improve description");
-    }
-  }, [improvedContent, improveError, isImproving, setValue]);
-
-  // Replace handleImproveDescription with this
-  const handleImproveDescription = async () => {
-    const description = watch("description");
-    if (!description) {
-      toast.error("Please enter a description first");
-      return;
-    }
-
-    await improveWithAIFn({
-      current: description,
-      type: type.toLowerCase(), // 'experience', 'education', or 'project'
-    });
-  };
+  // Remove all description and improvement logic
 
   // Add/remove links for projects
   const addLink = () => {
@@ -281,38 +251,33 @@ export function EntryForm({ type, entries, onChange }) {
                   <label htmlFor="current">Current Education</label>
                 </div>
                 <div className="space-y-2">
-                  <Textarea
-                    placeholder="Description (optional)"
-                    className="h-32"
-                    {...register("description")}
-                    error={errors.description}
-                  />
-                  {errors.description && (
-                    <p className="text-sm text-red-500">{errors.description.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {[0, 1, 2, 3].map((idx) => (
-                    <Input
-                      key={idx}
-                      placeholder={
-                        idx === 0
-                          ? "Main achievement or focus (optional)"
-                          : idx === 1
-                          ? "Key project, research, or leadership (optional)"
-                          : idx === 2
-                          ? "Relevant coursework or award (optional)"
-                          : "Other highlight (optional)"
-                      }
-                      value={points[idx] || ""}
-                      onChange={(e) => {
-                        const newPoints = [...points];
-                        newPoints[idx] = e.target.value;
-                        setValue("points", newPoints);
-                      }}
-                      maxLength={200}
-                    />
-                  ))}
+                  {[0, 1, 2, 3].map((idx) => {
+                    let placeholder = `Point ${idx + 1} (bullet)`;
+                    if (type === "Experience") {
+                      if (idx === 0) placeholder = "Key responsibility or achievement";
+                      if (idx === 1) placeholder = "Technology/tools used";
+                      if (idx === 2) placeholder = "Quantifiable impact/result";
+                      if (idx === 3) placeholder = "Future scope or learning";
+                    } else if (type === "Education") {
+                      if (idx === 0) placeholder = "Relevant coursework or subject";
+                      if (idx === 1) placeholder = "Project or achievement";
+                      if (idx === 2) placeholder = "Extracurricular or leadership";
+                      if (idx === 3) placeholder = "Future scope or learning";
+                    } else if (type === "Project") {
+                      if (idx === 0) placeholder = "Project goal or feature";
+                      if (idx === 1) placeholder = "Technology/tools used";
+                      if (idx === 2) placeholder = "Impact or result";
+                      if (idx === 3) placeholder = "Future scope or learning";
+                    }
+                    return (
+                      <Input
+                        key={idx}
+                        placeholder={placeholder}
+                        {...register(`points.${idx}`)}
+                        error={errors.points?.[idx]}
+                      />
+                    );
+                  })}
                   <p className="text-xs text-muted-foreground mt-1">You can add up to 4 points. All are optional for education.</p>
                 </div>
               </>

@@ -646,8 +646,8 @@ ${achievementsLatex}
                       {field.value.map((skill, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <Input
+                            placeholder={`Programming Languages: Java, Python, ...`}
                             {...register(`skills.${index}.text`)}
-                            placeholder="e.g., Programming Languages: JavaScript, Python"
                             error={errors.skills?.[index]?.text}
                           />
                           <Button

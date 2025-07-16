@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import DashboardView from "./_component/dashboard-view";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const isFirstLoad = useRef(true);
 
   const fetchData = () => {
     setLoading(true);
@@ -57,6 +58,10 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      return;
+    }
     fetchData();
   }, [pathname]);
 
@@ -73,7 +78,9 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto">
-      <DashboardView key={pathname} insights={insights} user={user} />
+      {insights && user ? (
+        <DashboardView key={pathname} insights={insights} user={user} />
+      ) : null}
     </div>
   );
 }
