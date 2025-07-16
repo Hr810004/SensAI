@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import QuizResult from "./quiz-result";
 
@@ -76,10 +77,13 @@ export default function QuizList({ assessments }) {
         </CardContent>
       </Card>
 
-      <Dialog open={!!selectedQuiz} onOpenChange={() => setSelectedQuiz(null)}>
+      <Dialog open={!!selectedQuiz} onOpenChange={setSelectedQuiz}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle></DialogTitle>
+            <DialogTitle>Quiz Details</DialogTitle>
+            <DialogDescription>
+              Review your answers and feedback for this quiz attempt.
+            </DialogDescription>
           </DialogHeader>
           <QuizResult
             result={selectedQuiz}
