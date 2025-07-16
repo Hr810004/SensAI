@@ -394,13 +394,25 @@ export default function Quiz() {
   }
 
   if (loadingQuestions || !quizSections) {
-    return <BarLoader className="mt-8 mx-auto" width={200} color="gray" />;
+    return (
+      <div className="flex flex-col items-center mt-8">
+        <span className="mb-2 text-muted-foreground text-sm">Quiz generation may take 10–20 seconds. Please wait...</span>
+        <BarLoader width={200} color="gray" />
+      </div>
+    );
   }
 
-  const sectionNames = Object.keys(quizSections);
-  const subsectionNames = Object.keys(quizSections[currentSection]);
-  const totalQuestions = quizData.length;
-  const currentQuestion = quizData[currentQuestionIdx];
+  const sectionNames = quizSections ? Object.keys(quizSections) : [];
+  const subsectionNames =
+    quizSections && currentSection && quizSections[currentSection]
+      ? Object.keys(quizSections[currentSection])
+      : [];
+  const questionsArray =
+    quizSections && currentSection && currentSubsection && quizSections[currentSection] && quizSections[currentSection][currentSubsection]
+      ? quizSections[currentSection][currentSubsection]
+      : [];
+  const totalQuestions = questionsArray.length;
+  const currentQuestion = questionsArray[currentQuestionIdx] || null;
   const inputType = getInputType(currentSection, currentSubsection);
 
   if (quizFinished) {
@@ -454,7 +466,8 @@ export default function Quiz() {
             className={`px-3 py-1 rounded font-semibold ${section === currentSection ? "bg-primary text-white" : "bg-muted"}`}
             onClick={() => {
               setCurrentSection(section);
-              setCurrentSubsection(Object.keys(quizSections[section])[0]);
+              const firstSub = quizSections[section] ? Object.keys(quizSections[section])[0] : null;
+              setCurrentSubsection(firstSub);
               setCurrentQuestionIdx(0);
             }}
           >

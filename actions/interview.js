@@ -4,8 +4,52 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+export async function generateQuizPrompt({ company, role, user }) {
+  const industry = user?.industry || role || "";
+  const skills = user?.skills || [];
+  const prompt = `
+Generate a JSON mock interview quiz for a candidate applying for '${role || industry}' at '${company || ''}'.
+
+- Make all questions as specific as possible to the company and role (use public info if available).
+- Structure:
+{
+  "Aptitude": {
+    "Logical Reasoning": [3 MCQs],
+    "Critical Reasoning": [3 MCQs],
+    "Quantitative Aptitude": [3 MCQs],
+    "Data Interpretation": [3 MCQs]
+  },
+  "CS Fundamentals": {
+    "DSA": [2 questions: 1 LeetCode-style (questionType: 'leetcode-algorithm'), 1 code snippet (questionType: 'code-correction', 'code-completion', or 'missing-line')],
+    "Operating Systems": [1-2 open-ended],
+    "Databases": [1-2 open-ended],
+    "Networking": [1-2 open-ended],
+    "OOP/Software Engineering": [1-2 open-ended]
+  },
+  "Behavioral & Communication": {
+    "Behavioral": [1-2 open-ended],
+    "Situational": [1-2 open-ended],
+    "Communication/Presentation": [1-2 open-ended]
+  }
+}
+- MCQs: 4 options, correct answer, explanation.
+- DSA: 1 LeetCode-style, 1 code snippet-based.
+- Open-ended: question, explanation.
+- Return ONLY the JSON, no extra text or markdown.
+`;
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    const cleanedText = text.replace(/```(?:json)?\n?/g, '').trim();
+    const quiz = JSON.parse(cleanedText);
+    return quiz;
+  } catch (e) {
+    throw new Error(e.message || 'Failed to generate quiz');
+  }
+}
 
 export async function generateQuiz() {
   const { userId } = await auth();
@@ -21,40 +65,8 @@ export async function generateQuiz() {
 
   if (!user) throw new Error("User not found");
 
-  const prompt = `
-    Generate 10 technical interview questions for a ${
-      user.industry
-    } professional${
-    user.skills?.length ? ` with expertise in ${user.skills.join(", ")}` : ""
-  }.
-    
-    Each question should be multiple choice with 4 options.
-    
-    Return the response in this JSON format only, no additional text:
-    {
-      "questions": [
-        {
-          "question": "string",
-          "options": ["string", "string", "string", "string"],
-          "correctAnswer": "string",
-          "explanation": "string"
-        }
-      ]
-    }
-  `;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
-    const quiz = JSON.parse(cleanedText);
-
-    return quiz.questions;
-  } catch (error) {
-    console.error("Error generating quiz:", error);
-    throw new Error("Failed to generate quiz questions");
-  }
+  // Use the centralized function for quiz generation
+  return await generateQuizPrompt({ company: null, role: null, user });
 }
 
 export async function saveQuizResult(questions, answers, score) {
