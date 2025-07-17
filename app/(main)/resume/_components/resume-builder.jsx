@@ -17,9 +17,7 @@ import { resumeSchema } from "@/app/lib/schema";
 
 export default function ResumeBuilder({ initialContent }) {
   const [activeTab, setActiveTab] = useState("form");
-  const [previewContent, setPreviewContent] = useState(initialContent);
   const { user } = useUser();
-  const [resumeMode, setResumeMode] = useState("preview");
   const [latexCode, setLatexCode] = useState("");
   const [achievements, setAchievements] = useState([]);
   const [geminiPrompt, setGeminiPrompt] = useState("");
@@ -79,20 +77,8 @@ export default function ResumeBuilder({ initialContent }) {
     loadResume();
   }, [reset]);
 
-  // Watch form fields for preview updates
+  // Watch form fields for updates
   const formValues = watch();
-
-  useEffect(() => {
-    if (initialContent) setActiveTab("preview");
-  }, [initialContent]);
-
-  // Update preview content when form values change
-  useEffect(() => {
-    if (activeTab === "edit") {
-      const newContent = getCombinedContent();
-      setPreviewContent(newContent ? newContent : initialContent);
-    }
-  }, [formValues, activeTab]);
 
   // Handle save result
   useEffect(() => {
@@ -452,8 +438,6 @@ ${achievementsLatex}
   };
 
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState(null);
 
   const downloadLatex = async () => {
     setIsDownloading(true);
@@ -542,7 +526,6 @@ ${achievementsLatex}
           <TabsList>
             <TabsTrigger value="form">Form</TabsTrigger>
             <TabsTrigger value="latex">LaTeX</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
           </TabsList>
 
           {/* Form Tab - Reordered sections */}
@@ -804,80 +787,7 @@ ${achievementsLatex}
             </div>
           </TabsContent>
 
-          {/* Preview Tab */}
-          <TabsContent value="preview">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">PDF Preview</h3>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={async () => {
-                      setIsGeneratingPDF(true);
-                      setPdfUrl(null);
-                      try {
-                        const res = await fetch("/api/compile-latex", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ latexCode }),
-                        });
-                        if (!res.ok) throw new Error("PDF generation failed");
-                        const blob = await res.blob();
-                        const url = URL.createObjectURL(blob);
-                        setPdfUrl(url);
-                      } catch (err) {
-                        toast.error("Failed to generate PDF preview");
-                      } finally {
-                        setIsGeneratingPDF(false);
-                      }
-                    }}
-                    disabled={isGeneratingPDF}
-                    variant="default"
-                  >
-                    {isGeneratingPDF ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Generating PDF...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4 mr-2" />
-                        Generate PDF
-                      </>
-                    )}
-                  </Button>
-                  {pdfUrl && (
-                    <Button
-                      onClick={() => {
-                        const link = document.createElement("a");
-                        link.href = pdfUrl;
-                        link.download = "resume.pdf";
-                        link.click();
-                      }}
-                      variant="outline"
-                    >
-                      Download PDF
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {pdfUrl ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <iframe
-                    src={pdfUrl}
-                    className="w-full h-[800px]"
-                    title="Resume PDF Preview"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-300">
-                  <div className="text-center">
-                    <p className="text-gray-500 mb-2">No preview available</p>
-                    <p className="text-sm text-gray-400">Click Generate PDF to see a preview</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </TabsContent>
+
         </Tabs>
       )}
     </div>
