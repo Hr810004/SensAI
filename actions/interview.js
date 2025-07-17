@@ -110,7 +110,7 @@ export async function saveQuizResult(questions, answers, score) {
       Don't explicitly mention the mistakes, instead focus on what to learn/practice.
     `;
 
-    try[object Object]
+    try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
       const tipResult = await model.generateContent(improvementPrompt);

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Edit2, Eye, Trash2 } from "lucide-react";
+import { Edit2, Eye, Trash2, User, Building, Calendar, Target, Copy } from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
@@ -38,6 +38,16 @@ export default function CoverLetterList({ coverLetters }) {
     }
   };
 
+  const handleCopy = async (content) => {
+    try {
+      const plainText = content.replace(/[#*`]/g, '').replace(/\n\n/g, '\n');
+      await navigator.clipboard.writeText(plainText);
+      toast.success("Cover letter copied to clipboard!");
+    } catch (error) {
+      toast.error("Failed to copy cover letter");
+    }
+  };
+
   if (!coverLetters?.length) {
     return (
       <Card>
@@ -66,14 +76,21 @@ export default function CoverLetterList({ coverLetters }) {
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => router.push(`/ai-cover-letter/${letter.id}`)}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleCopy(letter.content)}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
                 <AlertDialog>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => router.push(`/ai-cover-letter/${letter.id}`)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="icon">
                       <Trash2 className="h-4 w-4" />
@@ -103,8 +120,50 @@ export default function CoverLetterList({ coverLetters }) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-muted-foreground text-sm line-clamp-3">
-              {letter.jobDescription}
+            <div className="space-y-3">
+              <div className="text-muted-foreground text-sm line-clamp-3">
+                {letter.jobDescription}
+              </div>
+              
+              {/* Additional details */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-muted-foreground">
+                {letter.applicantName && (
+                  <div className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    <span>{letter.applicantName}</span>
+                  </div>
+                )}
+                
+                {letter.applicantLocation && (
+                  <div className="flex items-center gap-1">
+                    <Building className="h-3 w-3" />
+                    <span>{letter.applicantLocation}</span>
+                  </div>
+                )}
+                
+                {letter.yearsOfExperience && (
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>{letter.yearsOfExperience}</span>
+                  </div>
+                )}
+                
+                {letter.focus && (
+                  <div className="flex items-center gap-1">
+                    <Target className="h-3 w-3" />
+                    <span className="capitalize">{letter.focus}</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Tone badge */}
+              {letter.tone && (
+                <div className="flex gap-2">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    {letter.tone.charAt(0).toUpperCase() + letter.tone.slice(1)} Tone
+                  </span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

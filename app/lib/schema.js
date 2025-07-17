@@ -98,4 +98,17 @@ export const coverLetterSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
   jobTitle: z.string().min(1, "Job title is required"),
   jobDescription: z.string().min(1, "Job description is required"),
+  // Personal information fields
+  applicantName: z.string().min(1, "Your name is required"),
+  applicantEmail: z.string().email("Valid email is required"),
+  applicantPhone: z.string().optional(),
+  applicantLocation: z.string().optional(),
+  applicantLinkedin: z.string().url("Invalid LinkedIn URL").optional(),
+  // Professional background
+  yearsOfExperience: z.string().optional(),
+  keySkills: z.string().optional(),
+  relevantExperience: z.string().optional(),
+  // Cover letter customization
+  tone: z.enum(["professional", "enthusiastic", "confident", "humble"]).default("professional"),
+  focus: z.enum(["experience", "skills", "culture", "growth"]).default("experience"),
 });

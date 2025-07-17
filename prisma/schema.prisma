@@ -77,6 +77,23 @@ model CoverLetter {
   jobDescription String?
   companyName    String // Name of the company applying to
   jobTitle       String // Position applying for
+  
+  // Applicant information
+  applicantName     String?
+  applicantEmail    String?
+  applicantPhone    String?
+  applicantLocation String?
+  applicantLinkedin String?
+  
+  // Professional background
+  yearsOfExperience   String?
+  keySkills          String?
+  relevantExperience String?
+  
+  // Cover letter customization
+  tone String? // professional, enthusiastic, confident, humble
+  focus String? // experience, skills, culture, growth
+  
   status         String   @default("draft") // draft, completed
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
