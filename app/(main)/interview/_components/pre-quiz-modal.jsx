@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export default function PreQuizModal({ open, onStart }) {
+export default function PreQuizModal({ open, onStart, onOpenChange }) {
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [error, setError] = useState("");
@@ -18,7 +18,7 @@ export default function PreQuizModal({ open, onStart }) {
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby="pre-quiz-desc">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Prepare for Your Dream Job</DialogTitle>

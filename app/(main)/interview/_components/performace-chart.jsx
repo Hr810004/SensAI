@@ -23,12 +23,16 @@ export default function PerformanceChart({ assessments }) {
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
-    if (assessments) {
-      const formattedData = assessments.map((assessment) => ({
-        date: format(new Date(assessment.createdAt), "MMM dd"),
-        score: assessment.quizScore,
-      }));
+    if (assessments?.length > 0) {
+      const formattedData = assessments
+        .filter(assessment => assessment.createdAt && assessment.quizScore !== undefined)
+        .map((assessment) => ({
+          date: format(new Date(assessment.createdAt), "MMM dd"),
+          score: assessment.quizScore || 0,
+        }));
       setChartData(formattedData);
+    } else {
+      setChartData([]);
     }
   }, [assessments]);
 

@@ -64,6 +64,7 @@ export default function Quiz() {
     }
   }, [quizData]);
 
+  // --- [1] Ensure video/audio preview always works, and mediaStream is set up reliably ---
   useEffect(() => {
     if (!preQuizOpen && !mediaStream) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -93,9 +94,16 @@ export default function Quiz() {
     };
   }, [preQuizOpen]);
 
+  // Always attach mediaStream to videoRef when available
+  useEffect(() => {
+    if (videoRef.current && mediaStream) {
+      videoRef.current.srcObject = mediaStream;
+    }
+  }, [mediaStream]);
+
+  // Audio level tracking
   useEffect(() => {
     if (mediaStream) {
-      // Set up audio context and analyser for audio level tracking
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       analyserRef.current = audioContextRef.current.createAnalyser();
       audioSourceRef.current = audioContextRef.current.createMediaStreamSource(mediaStream);
@@ -106,7 +114,6 @@ export default function Quiz() {
 
       const updateAudioLevel = () => {
         analyserRef.current.getByteFrequencyData(dataArray);
-        // Use average volume as level
         const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
         setAudioLevel(avg);
         animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
@@ -123,6 +130,55 @@ export default function Quiz() {
     };
   }, [mediaStream]);
 
+  // --- [2] Robust face detection ---
+  useEffect(() => {
+    if (!mediaStream || quizFinished) return;
+    let interval;
+    let localNoFaceTimer = null;
+    async function loadAndDetect() {
+      if (!faceapiLoaded) {
+        try {
+          await faceapi.nets.tinyFaceDetector.loadFromUri('/models/tiny_face_detector');
+          faceapiLoaded = true;
+        } catch (err) {
+          console.error('Failed to load face detection models:', err);
+          return;
+        }
+      }
+      if (videoRef.current && faceapiLoaded) {
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.play();
+        interval = setInterval(async () => {
+          try {
+            const detections = await faceapi.detectAllFaces(
+              videoRef.current,
+              new faceapi.TinyFaceDetectorOptions()
+            );
+            if (detections.length > 0) {
+              setFaceDetected(true);
+              if (localNoFaceTimer) {
+                clearTimeout(localNoFaceTimer);
+                localNoFaceTimer = null;
+              }
+            } else {
+              if (!localNoFaceTimer) {
+                localNoFaceTimer = setTimeout(() => setFaceDetected(false), 5000);
+              }
+            }
+          } catch (err) {
+            console.error('Face detection error:', err);
+          }
+        }, 1000);
+      }
+    }
+    loadAndDetect();
+    return () => {
+      if (interval) clearInterval(interval);
+      if (localNoFaceTimer) clearTimeout(localNoFaceTimer);
+    };
+  }, [mediaStream, quizFinished]);
+
+  // --- [3] Tab switching and proctoring (already robust, but add more feedback if needed) ---
   useEffect(() => {
     const handleTabSwitch = () => {
       if (document.hidden) {
@@ -138,6 +194,161 @@ export default function Quiz() {
       document.removeEventListener('visibilitychange', handleTabSwitch);
     };
   }, []);
+
+  // --- [4] Add error handling for quiz generation ---
+  const handleStartQuiz = async (selectedCompany, selectedRole) => {
+    if (!selectedCompany.trim() || !selectedRole.trim()) {
+      alert("Please enter both company and role.");
+      return;
+    }
+    setCompany(selectedCompany);
+    setRole(selectedRole);
+    setPreQuizOpen(false);
+    setLoadingQuestions(true);
+    try {
+      const res = await fetch("/api/generate-quiz-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company: selectedCompany, role: selectedRole }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || "Failed to generate quiz questions");
+      }
+      const data = await res.json();
+      setQuizSections(data.quiz);
+      const sectionNames = Object.keys(data.quiz);
+      const firstSection = sectionNames[0];
+      const firstSubsection = Object.keys(data.quiz[firstSection])[0];
+      setCurrentSection(firstSection);
+      setCurrentSubsection(firstSubsection);
+    } catch (e) {
+      alert("Failed to generate quiz questions: " + e.message);
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
+  // Start timer when quizSections are set (questions rendered)
+  useEffect(() => {
+    if (quizSections && !quizFinished) {
+      setTimer(0);
+      timerIntervalRef.current = setInterval(() => {
+        setTimer((prev) => prev + 1);
+      }, 1000);
+    }
+    if (quizFinished && timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [quizSections, quizFinished]);
+
+  // Format timer as mm:ss
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // --- [5] Missing Functions ---
+  function getInputType(section, subsection) {
+    if (section === "Aptitude") return "mcq";
+    if (section === "CS Fundamentals" && subsection === "DSA") return "text-audio";
+    if (section === "CS Fundamentals") return "audio";
+    if (section === "Behavioral & Communication") return "audio";
+    return "mcq";
+  }
+
+  const handleMcqChange = (val) => {
+    setMcqAnswers((prev) => ({
+      ...prev,
+      [currentSection]: {
+        ...(prev[currentSection] || {}),
+        [currentSubsection]: [
+          ...(prev[currentSection]?.[currentSubsection] || []),
+        ].map((a, i) => (i === currentQuestionIdx ? val : a)),
+      },
+    }));
+  };
+
+  const handleTextChange = (e) => {
+    setTextAnswers((prev) => ({
+      ...prev,
+      [currentSection]: {
+        ...(prev[currentSection] || {}),
+        [currentSubsection]: [
+          ...(prev[currentSection]?.[currentSubsection] || []),
+        ].map((a, i) => (i === currentQuestionIdx ? e.target.value : a)),
+      },
+    }));
+  };
+
+  const handleStartRecording = () => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      toast.error("Speech recognition not supported in this browser.");
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      try {
+        const transcript = event.results[0][0].transcript;
+        if (inputType === "text-audio") {
+          setTextAnswers((prev) => ({
+            ...prev,
+            [currentSection]: {
+              ...(prev[currentSection] || {}),
+              [currentSubsection]: [
+                ...(prev[currentSection]?.[currentSubsection] || []),
+              ].map((a, i) => (i === currentQuestionIdx ? transcript : a)),
+            },
+          }));
+        } else if (inputType === "audio") {
+          setAudioAnswers((prev) => ({
+            ...prev,
+            [currentSection]: {
+              ...(prev[currentSection] || {}),
+              [currentSubsection]: [
+                ...(prev[currentSection]?.[currentSubsection] || []),
+              ].map((a, i) => (i === currentQuestionIdx ? transcript : a)),
+            },
+          }));
+        }
+        toast.success("Answer recorded successfully!");
+      } catch (error) {
+        console.error("Speech recognition error:", error);
+        toast.error("Failed to process speech. Please try again.");
+      }
+    };
+    recognition.onend = () => setRecording(false);
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setRecording(false);
+      if (event.error === 'no-speech') {
+        toast.error("No speech detected. Please try again.");
+      } else {
+        toast.error("Speech recognition failed. Please try again.");
+      }
+    };
+    recognitionRef.current = recognition;
+    setRecording(true);
+    toast.info("Listening... Speak now.");
+    recognition.start();
+  };
+
+  const handleStopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setRecording(false);
+    }
+  };
 
   const handleFinishQuiz = () => {
     setQuizFinished(true);
@@ -184,12 +395,13 @@ export default function Quiz() {
       }
     });
     const improvementTips = {
-      "Aptitude": "Review your mistakes and practice more company-specific aptitude questions.",
+      Aptitude: "Review your mistakes and practice more company-specific aptitude questions.",
       "CS Fundamentals": "Focus on explaining your thought process clearly in technical questions.",
       "Behavioral & Communication": "Practice speaking confidently and concisely about your experiences.",
     };
+    const finalScore = totalQuestions ? (totalScore / totalQuestions) * 100 : 0;
     setQuizResult({
-      totalScore: totalQuestions ? (totalScore / totalQuestions) * 100 : 0,
+      quizScore: finalScore, // Use only quizScore for consistency across all components
       sectionScores,
       improvementTips,
       questions: questionsReview,
@@ -200,260 +412,8 @@ export default function Quiz() {
     });
   };
 
-  function getInputType(section, subsection) {
-    if (section === "Aptitude") return "mcq";
-    if (section === "CS Fundamentals" && subsection === "DSA") return "text-audio";
-    if (section === "CS Fundamentals") return "audio";
-    if (section === "Behavioral & Communication") return "audio";
-    return "mcq";
-  }
-
-  const handleMcqChange = (val) => {
-    setMcqAnswers((prev) => ({
-      ...prev,
-      [currentSection]: {
-        ...(prev[currentSection] || {}),
-        [currentSubsection]: [
-          ...(prev[currentSection]?.[currentSubsection] || []),
-        ].map((a, i) => (i === currentQuestionIdx ? val : a)),
-      },
-    }));
-  };
-  const handleTextChange = (e) => {
-    setTextAnswers((prev) => ({
-      ...prev,
-      [currentSection]: {
-        ...(prev[currentSection] || {}),
-        [currentSubsection]: [
-          ...(prev[currentSection]?.[currentSubsection] || []),
-        ].map((a, i) => (i === currentQuestionIdx ? e.target.value : a)),
-      },
-    }));
-  };
-  const handleTextAnswer = (e) => {
-    const newTextAnswers = [...textAnswers];
-    newTextAnswers[currentQuestion] = e.target.value;
-    setTextAnswers(newTextAnswers);
-  };
-
-  const handleNext = () => {
-    if (currentQuestion < quizData.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setShowExplanation(false);
-    } else {
-      finishQuiz();
-    }
-  };
-
-  const calculateScore = () => {
-    let correct = 0;
-    answers.forEach((answer, index) => {
-      if (answer === quizData[index].correctAnswer) {
-        correct++;
-      }
-    });
-    return (correct / quizData.length) * 100;
-  };
-
-  const finishQuiz = async () => {
-    const score = calculateScore();
-    try {
-      await saveQuizResultFn(quizData, answers, score);
-      toast.success("Quiz completed!");
-    } catch (error) {
-      toast.error(error.message || "Failed to save quiz results");
-    }
-  };
-
-  const startNewQuiz = () => {
-    setCurrentQuestion(0);
-    setAnswers([]);
-    setShowExplanation(false);
-    generateQuizFn();
-    setResultData(null);
-  };
-
-  const handleStartRecording = () => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      alert("Speech recognition not supported in this browser.");
-      return;
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      if (inputType === "text-audio") {
-        setTextAnswers((prev) => ({
-          ...prev,
-          [currentSection]: {
-            ...(prev[currentSection] || {}),
-            [currentSubsection]: [
-              ...(prev[currentSection]?.[currentSubsection] || []),
-            ].map((a, i) => (i === currentQuestionIdx ? transcript : a)),
-          },
-        }));
-      } else if (inputType === "audio") {
-        setAudioAnswers((prev) => ({
-          ...prev,
-          [currentSection]: {
-            ...(prev[currentSection] || {}),
-            [currentSubsection]: [
-              ...(prev[currentSection]?.[currentSubsection] || []),
-            ].map((a, i) => (i === currentQuestionIdx ? transcript : a)),
-          },
-        }));
-      }
-    };
-    recognition.onend = () => setRecording(false);
-    recognition.onerror = () => setRecording(false);
-    recognitionRef.current = recognition;
-    setRecording(true);
-    recognition.start();
-  };
-  const handleStopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setRecording(false);
-    }
-  };
-
-  const handleGetFeedback = async () => {
-    try {
-      const res = await fetch("/api/interview-feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: question.question,
-          answer: textAnswers[currentQuestion],
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      const newFeedback = [...feedback];
-      newFeedback[currentQuestion] = data.feedback;
-      setFeedback(newFeedback);
-    } catch (e) {
-      toast.error(e.message || "Failed to get AI feedback");
-    }
-  };
-
-  const handleStartQuiz = async (selectedCompany, selectedRole) => {
-    setCompany(selectedCompany);
-    setRole(selectedRole);
-    setPreQuizOpen(false);
-    setLoadingQuestions(true);
-    try {
-      const res = await fetch("/api/generate-quiz-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company: selectedCompany, role: selectedRole }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setQuizSections(data.quiz);
-      const sectionNames = Object.keys(data.quiz);
-      const firstSection = sectionNames[0];
-      const firstSubsection = Object.keys(data.quiz[firstSection])[0];
-      setCurrentSection(firstSection);
-      setCurrentSubsection(firstSubsection);
-    } catch (e) {
-      alert("Failed to generate quiz questions: " + e.message);
-    } finally {
-      setLoadingQuestions(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!mediaStream || quizFinished) return;
-    let interval;
-    async function loadAndDetect() {
-      if (!faceapiLoaded) {
-        const faceapi = await import("face-api.js");
-        window.faceapi = faceapi;
-        if (!window.faceapi) return;
-        await window.faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights");
-        faceapiLoaded = true;
-      }
-      if (videoRef.current && window.faceapi) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-        interval = setInterval(async () => {
-          if (!window.faceapi) return;
-          const detections = await window.faceapi.detectAllFaces(
-            videoRef.current,
-            new window.faceapi.TinyFaceDetectorOptions()
-          );
-          if (detections.length > 0) {
-            setFaceDetected(true);
-            if (noFaceTimer) {
-              clearTimeout(noFaceTimer);
-              setNoFaceTimer(null);
-            }
-          } else {
-            if (!noFaceTimer) {
-              setNoFaceTimer(
-                setTimeout(() => setFaceDetected(false), 5000)
-              );
-            }
-          }
-        }, 1000);
-      }
-    }
-    loadAndDetect();
-    return () => {
-      if (interval) clearInterval(interval);
-      if (noFaceTimer) clearTimeout(noFaceTimer);
-    };
-  }, [mediaStream, quizFinished]);
-
-  useEffect(() => {
-    async function loadModels() {
-      try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('/models/tiny_face_detector');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/models/face_landmark_68');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/models/face_recognition');
-        // Add more models if you use them
-        faceapiLoaded = true;
-      } catch (err) {
-        console.error('Failed to load face-api.js models:', err);
-        toast.error('Failed to load face detection models.');
-      }
-    }
-    if (!faceapiLoaded) {
-      loadModels();
-    }
-  }, []);
-
-  // Start timer when quizSections are set (questions rendered)
-  useEffect(() => {
-    if (quizSections && !quizFinished) {
-      setTimer(0);
-      timerIntervalRef.current = setInterval(() => {
-        setTimer((prev) => prev + 1);
-      }, 1000);
-    }
-    if (quizFinished && timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-    }
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-    };
-  }, [quizSections, quizFinished]);
-
-  // Format timer as mm:ss
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
   if (preQuizOpen) {
-    return <PreQuizModal open={preQuizOpen} onStart={handleStartQuiz} />;
+    return <PreQuizModal open={preQuizOpen} onStart={handleStartQuiz} onOpenChange={setPreQuizOpen} />;
   }
 
   if (loadingQuestions || !quizSections) {
@@ -507,7 +467,7 @@ export default function Quiz() {
         </div>
       )}
       {/* Show video/audio check while quiz is loading */}
-      {generatingQuiz && mediaStream && (
+      {loadingQuestions && mediaStream && (
         <div className="flex flex-col items-center justify-center min-h-[300px]">
           {/* Audio Level Bar */}
           <div className="mb-2 w-full max-w-xs">
@@ -537,7 +497,7 @@ export default function Quiz() {
         </div>
       )}
       {/* Audio Level Bar and Timer on the same line */}
-      {mediaStream && !quizFinished && !generatingQuiz && (
+      {mediaStream && !quizFinished && !loadingQuestions && (
         <div className="mb-2 flex items-center justify-between w-full max-w-lg">
           <div className="flex-1 mr-4">
             <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
@@ -556,7 +516,7 @@ export default function Quiz() {
         </div>
       )}
       {/* Video Preview - always visible when mediaStream is available and quiz is not finished */}
-      {mediaStream && !quizFinished && !generatingQuiz && (
+      {mediaStream && !quizFinished && !loadingQuestions && (
         <div className="flex justify-center mb-4">
           <video
             ref={videoRef}
@@ -570,7 +530,7 @@ export default function Quiz() {
         </div>
       )}
       {/* Fallback if webcam is not accessible */}
-      {!mediaStream && !quizFinished && !generatingQuiz && (
+      {!mediaStream && !quizFinished && !loadingQuestions && (
         <div className="mb-4 text-center text-red-600 font-semibold">
           Webcam not accessible. Please enable your webcam for video preview and face detection.
         </div>

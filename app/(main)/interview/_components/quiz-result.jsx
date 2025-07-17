@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-export default function QuizResult({ result, videoUrl, onStartNew }) {
+export default function QuizResult({ result, videoUrl, onStartNew, hideStartNew }) {
   if (!result) return null;
 
   return (
@@ -17,8 +17,8 @@ export default function QuizResult({ result, videoUrl, onStartNew }) {
       <CardContent className="space-y-6">
         {/* Score Overview */}
         <div className="text-center space-y-2">
-          <h3 className="text-2xl font-bold">{result.totalScore?.toFixed(1) || result.quizScore?.toFixed(1)}%</h3>
-          <Progress value={result.totalScore || result.quizScore} className="w-full" />
+          <h3 className="text-2xl font-bold">{result.quizScore?.toFixed(1)}%</h3>
+          <Progress value={result.quizScore} className="w-full" />
         </div>
         {/* Section Breakdown */}
         {result.sectionScores && (
@@ -77,11 +77,13 @@ export default function QuizResult({ result, videoUrl, onStartNew }) {
           </div>
         )}
       </CardContent>
-      <CardFooter>
-        <Button onClick={onStartNew} className="w-full">
-          Start New Quiz
-        </Button>
-      </CardFooter>
+      {!hideStartNew && (
+        <CardFooter>
+          <Button onClick={onStartNew} className="w-full">
+            Start New Quiz
+          </Button>
+        </CardFooter>
+      )}
     </div>
   );
 }

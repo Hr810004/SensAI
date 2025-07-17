@@ -96,8 +96,7 @@ export async function saveQuizResult(questions, answers, score) {
     const wrongQuestionsText = wrongAnswers
       .map(
         (q) =>
-          `Question: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
-      )
+          `Question:${q.question}nCorrect Answer: "${q.answer}"\nUser Answer:${q.userAnswer}`     )
       .join("\n\n");
 
     const improvementPrompt = `
@@ -111,7 +110,9 @@ export async function saveQuizResult(questions, answers, score) {
       Don't explicitly mention the mistakes, instead focus on what to learn/practice.
     `;
 
-    try {
+    try[object Object]
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
       const tipResult = await model.generateContent(improvementPrompt);
 
       improvementTip = tipResult.response.text().trim();
