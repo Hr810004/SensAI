@@ -108,6 +108,38 @@ export default function ResumeBuilder({ initialContent }) {
   const formToLatex = (formData) => {
     const { contactInfo = {}, skills = [], experience = [], education = [], projects = [], achievements = [] } = formData;
     
+    // Helper function to escape LaTeX special characters
+    const escapeLatex = (text) => {
+      if (!text) return "";
+      return text.replace(/(%_#&{}$])/g, '\\$1');
+    };
+
+    // Helper function to extract username from URL
+    const extractUsername = (url, platform) => {
+      if (!url) return "";
+      try {
+        const urlObj = new URL(url);
+        const path = urlObj.pathname;
+        if (platform === 'linkedin') {
+          const match = path.match(/\/in\/([^\/]+)/);
+          return match ? match[1] : "";
+        } else if (platform === 'github') {
+          const match = path.match(/\/([^\/]+)$/);
+          return match ? match[1] : "";
+        }
+      } catch (e) {
+        // If URL parsing fails, try to extract from the string
+        if (platform === 'linkedin') {
+          const match = url.match(/linkedin\.com\/in\/([^\/\s]+)/);
+          return match ? match[1] : "";
+        } else if (platform === 'github') {
+          const match = url.match(/github\.com\/([^\/\s]+)/);
+          return match ? match[1] : "";
+        }
+      }
+      return "";
+    };
+
     // Generate LaTeX for achievements with optional links
     const achievementsLatex = achievements.length > 0
       ? `
@@ -117,7 +149,7 @@ export default function ResumeBuilder({ initialContent }) {
   \\item[] \\small{
     ${achievements.map(achievement =>
       (achievement.points || []).map(pt => {
-        const text = pt.replace(/([%_#&{}$])/g, '\\$1');
+        const text = escapeLatex(pt);
         if (achievement.url) {
           return `\\href{${achievement.url}}{${text}}`;
         }
@@ -135,8 +167,8 @@ export default function ResumeBuilder({ initialContent }) {
 \\section{Personal Projects}
   \\resumeSubHeadingListStart
 ${projects.map(project => {
-  const title = project.title.replace(/([%_#&{}$])/g, '\\$1');
-  const techStack = project.organization ? `\\emph{${project.organization.replace(/([%_#&{}$])/g, '\\$1')}}` : "";
+  const title = escapeLatex(project.title);
+  const techStack = project.organization ? `\\emph{${escapeLatex(project.organization)}}` : "";
   const date = project.startDate || "";
   
   // Generate links for the project
@@ -149,7 +181,7 @@ ${projects.map(project => {
   return `   \\resumeProjectHeading
       {\\textbf{${title}} $|$ ${techStack}${projectLinks}}{${date}}
   \\resumeItemListStart
-${(project.points || []).map(pt => `     \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}
+${(project.points || []).map(pt => `     \\resumeItem{${escapeLatex(pt)}}`).join('\n')}
   \\resumeItemListEnd`;
 }).join('\n')}
   \\resumeSubHeadingListEnd`
@@ -162,26 +194,23 @@ ${(project.points || []).map(pt => `     \\resumeItem{${pt.replace(/([%_#&{}$])/
 \\section{Experience / Internship}
   \\resumeSubHeadingListStart
 ${experience.map(exp => `    \\resumeSubheading
-      {${exp.title.replace(/([%_#&{}$])/g, '\\$1')}} {${exp.startDate || ""} -- ${exp.current ? "Present" : exp.endDate || ""}}
-      {${exp.organization.replace(/([%_#&{}$])/g, '\\$1')}}{}
+      {${escapeLatex(exp.title)}} {${exp.startDate || ""} -- ${exp.current ? "Present" : exp.endDate || ""}}
+      {${escapeLatex(exp.organization)}}{}
       \\resumeItemListStart
-${(exp.points || []).map(pt => `        \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}
+${(exp.points || []).map(pt => `        \\resumeItem{${escapeLatex(pt)}}`).join('\n')}
       \\resumeItemListEnd`).join('\n')}
   \\resumeSubHeadingListEnd`
       : "";
 
-    // Generate LaTeX for education
+    // Generate LaTeX for education - Fixed to match your format exactly
     const educationLatex = education.length > 0
       ? `
 %-----------EDUCATION-----------
 \\section{Education}
   \\resumeSubHeadingListStart
 ${education.map(edu => `    \\resumeSubheading
-      {${edu.degree.replace(/([%_#&{}$])/g, '\\$1')}}
-      {${edu.startDate || ""} -- ${edu.current ? "Present" : edu.endDate || ""}}
-      {${edu.institution.replace(/([%_#&{}$])/g, '\\$1')}}
-      {${[edu.fieldOfStudy, edu.gpa ? `GPA: ${edu.gpa}` : null].filter(Boolean).join(edu.fieldOfStudy && edu.gpa ? ' (' : '') + (edu.fieldOfStudy && edu.gpa ? ')' : '')}}
-      ${(edu.points && edu.points.length > 0) ? `\\resumeItemListStart\\n${edu.points.map(pt => `        \\resumeItem{${pt.replace(/([%_#&{}$])/g, '\\$1')}}`).join('\n')}\\n      \\resumeItemListEnd` : ""}`
+      {${escapeLatex(edu.institution)}}{${edu.endDate || ""}}
+      {${escapeLatex(edu.degree)}}{${edu.gpa ? `CGPA: ${edu.gpa}` : ""}}     ${(edu.points && edu.points.length > 0) ? `\\resumeItemListStart\\n${edu.points.map(pt => `        \\resumeItem{${escapeLatex(pt)}}`).join('\n')}\\n      \\resumeItemListEnd` : ""}`
 ).join('\n')}
   \\resumeSubHeadingListEnd`
       : "";
@@ -194,7 +223,7 @@ ${education.map(edu => `    \\resumeSubheading
 \\begin{itemize}[leftmargin=0.15in, label={}, itemsep=1pt, topsep=0pt]
   \\item[] \\small{
     ${skills.map(skill => {
-      const text = skill.text.replace(/([%_#&{}$])/g, '\\$1');
+      const text = escapeLatex(skill.text);
       if (text.includes(':')) {
         const [category, ...rest] = text.split(':');
         return `\\textbf{${category.trim()}:} ${rest.join(':').trim()}`;
@@ -204,6 +233,19 @@ ${education.map(edu => `    \\resumeSubheading
   }
 \\end{itemize}`
       : "";
+
+    // Build contact information with proper URL extraction
+    const linkedinUsername = extractUsername(contactInfo.linkedin, 'linkedin');
+    const githubUsername = extractUsername(contactInfo.github, 'github');
+    const contactLatex = `\\begin{center}
+    \\textbf{\\Huge \\scshape ${escapeLatex(contactInfo.name || "Your Name")}} \\\\ \\vspace{1pt}
+    ${escapeLatex(contactInfo.location || "City, Country")} \\\\ \\vspace{1pt}
+    \\small
+    ${contactInfo.phone ? `\\faPhone \\ ${escapeLatex(contactInfo.phone)} $|$` : ""}
+    ${contactInfo.email ? `\\faEnvelope \\ \\href{mailto:${contactInfo.email}}{\\underline{${contactInfo.email}}} $|$` : ""}
+    ${linkedinUsername ? `\\faLinkedinSquare \\ \\href{${contactInfo.linkedin}}{\\underline{linkedin.com/in/${linkedinUsername}}} $|$` : ""}
+    ${githubUsername ? `\\faGithub \\ \\href{${contactInfo.github}}{\\underline{github.com/${githubUsername}}}` : ""}
+\\end{center}`;
 
     return `\\documentclass[letterpaper,11pt]{article}
 
@@ -276,15 +318,7 @@ ${education.map(edu => `    \\resumeSubheading
 
 \\begin{document}
 
-\\begin{center}
-    \\textbf{\\Huge \\scshape ${contactInfo.name || "Your Name"}} \\\\ \\vspace{1pt}
-    ${contactInfo.location || "City, Country"} \\\\ \\vspace{1pt}
-    \\small
-    ${contactInfo.phone ? `\\faPhone \\ ${contactInfo.phone} $|$` : ""}
-    ${contactInfo.email ? `\\faEnvelope \\ \\href{mailto:${contactInfo.email}}{\\underline{${contactInfo.email}}} $|$` : ""}
-    ${contactInfo.linkedin ? `\\faLinkedinSquare \\ \\href{${contactInfo.linkedin}}{\\underline{linkedin.com/in/your-profile}} $|$` : ""}
-    ${contactInfo.github ? `\\faGithub \\ \\href{${contactInfo.github}}{\\underline{github.com/your-username}}` : ""}
-\\end{center}
+${contactLatex}
 
 ${educationLatex}
 
@@ -298,11 +332,6 @@ ${achievementsLatex}
 
 \\end{document}`;
   };
-
-  // Sync: Form -> LaTeX
-  useEffect(() => {
-    setLatexCode(formToLatex({ ...formValues, achievements }));
-  }, [formValues, achievements]);
 
   // Gemini AI integration
   const handleGeminiPrompt = async () => {
@@ -329,7 +358,8 @@ ${achievementsLatex}
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get Gemini response");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to get Gemini response");
       }
 
       const data = await response.json();
@@ -342,7 +372,7 @@ ${achievementsLatex}
       }
     } catch (error) {
       console.error("Gemini API error:", error);
-      toast.error("Failed to get Gemini response");
+      toast.error(error.message || "Failed to get Gemini response");
     } finally {
       setIsGeminiLoading(false);
     }
@@ -391,7 +421,39 @@ ${achievementsLatex}
       .join("\n\n");
   };
 
+  // Helper function to convert entries to markdown
+  const entriesToMarkdown = (entries, title) => {
+    if (!entries || entries.length === 0) return null;
+    
+    const entriesMarkdown = entries.map(entry => {
+      const dateRange = entry.current 
+          ? `${entry.startDate} - Present`
+          : `${entry.startDate} - ${entry.endDate}`;
+        
+      let entryText = `### ${entry.title || entry.degree} @ ${entry.organization || entry.institution}\n`;
+      entryText += `*${dateRange}*\n\n`;
+      
+      if (entry.fieldOfStudy) {
+        entryText += `**Field:** ${entry.fieldOfStudy}\n\n`;
+      }
+      
+      if (entry.gpa) {
+        entryText += `**GPA:** ${entry.gpa}\n\n`;
+      }
+      
+      if (entry.points && entry.points.length > 0) {
+        entryText += entry.points.map(point => `- ${point}`).join('\n');
+      }
+      
+      return entryText;
+    }).join('\n\n');
+    
+    return `## ${title}\n\n${entriesMarkdown}`;
+  };
+
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   const downloadLatex = async () => {
     setIsDownloading(true);
@@ -480,6 +542,7 @@ ${achievementsLatex}
           <TabsList>
             <TabsTrigger value="form">Form</TabsTrigger>
             <TabsTrigger value="latex">LaTeX</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
           </TabsList>
 
           {/* Form Tab - Reordered sections */}
@@ -685,6 +748,19 @@ ${achievementsLatex}
                   onChange={setAchievements}
                 />
               </div>
+              {/* Convert to LaTeX Button */}
+              <div className="flex justify-end mt-4">
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => {
+                    setLatexCode(formToLatex({ ...formValues, achievements }));
+                    toast.success("LaTeX code updated!");
+                  }}
+                >
+                  Convert to LaTeX
+                </Button>
+              </div>
             </form>
           </TabsContent>
 
@@ -725,6 +801,81 @@ ${achievementsLatex}
                 </Button>
               )}
               <Button onClick={handleCopyLatex} variant="outline">Copy LaTeX</Button>
+            </div>
+          </TabsContent>
+
+          {/* Preview Tab */}
+          <TabsContent value="preview">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">PDF Preview</h3>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={async () => {
+                      setIsGeneratingPDF(true);
+                      setPdfUrl(null);
+                      try {
+                        const res = await fetch("/api/compile-latex", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ latexCode }),
+                        });
+                        if (!res.ok) throw new Error("PDF generation failed");
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        setPdfUrl(url);
+                      } catch (err) {
+                        toast.error("Failed to generate PDF preview");
+                      } finally {
+                        setIsGeneratingPDF(false);
+                      }
+                    }}
+                    disabled={isGeneratingPDF}
+                    variant="default"
+                  >
+                    {isGeneratingPDF ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Generate PDF
+                      </>
+                    )}
+                  </Button>
+                  {pdfUrl && (
+                    <Button
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = pdfUrl;
+                        link.download = "resume.pdf";
+                        link.click();
+                      }}
+                      variant="outline"
+                    >
+                      Download PDF
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {pdfUrl ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <iframe
+                    src={pdfUrl}
+                    className="w-full h-[800px]"
+                    title="Resume PDF Preview"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <p className="text-gray-500 mb-2">No preview available</p>
+                    <p className="text-sm text-gray-400">Click Generate PDF to see a preview</p>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

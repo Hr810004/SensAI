@@ -18,6 +18,11 @@ export async function saveResume(formData) {
 
   if (!user) throw new Error("User not found");
 
+  // Validate required fields
+  if (!formData.contactInfo?.name || !formData.contactInfo?.email) {
+    throw new Error("Name and email are required");
+  }
+
   try {
     const resume = await db.resume.upsert({
       where: {
@@ -25,19 +30,19 @@ export async function saveResume(formData) {
       },
       update: {
         contactInfo: formData.contactInfo,
-        skills: formData.skills,
-        experience: formData.experience,
-        education: formData.education,
-        projects: formData.projects,
+        skills: formData.skills || [],
+        experience: formData.experience || [],
+        education: formData.education || [],
+        projects: formData.projects || [],
         achievements: formData.achievements || [],
       },
       create: {
         userId: user.id,
         contactInfo: formData.contactInfo,
-        skills: formData.skills,
-        experience: formData.experience,
-        education: formData.education,
-        projects: formData.projects,
+        skills: formData.skills || [],
+        experience: formData.experience || [],
+        education: formData.education || [],
+        projects: formData.projects || [],
         achievements: formData.achievements || [],
       },
     });
@@ -46,6 +51,9 @@ export async function saveResume(formData) {
     return resume;
   } catch (error) {
     console.error("Error saving resume:", error);
+    if (error.code === 'P2025') {
+      throw new Error("Resume already exists for this user");
+    }
     throw new Error("Failed to save resume");
   }
 }

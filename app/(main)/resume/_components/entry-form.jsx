@@ -29,6 +29,7 @@ const formatDisplayDate = (dateString) => {
 
 export function EntryForm({ type, entries, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
 
   const isEducation = type === "Education";
 
@@ -66,13 +67,67 @@ export function EntryForm({ type, entries, onChange }) {
   const links = watch("links") || [];
   const points = watch("points") || ["", "", "", ""];
 
+  const handleImproveWithAI = async (entryIndex) => {
+    const entry = entries[entryIndex];
+    if (!entry || !entry.points || entry.points.length === 0) {
+      toast.error("Please add some points first before improving with AI");
+      return;
+    }
+
+    setIsImproving(true);
+    try {
+      const response = await improveWithAI({
+        type: type,
+        title: entry.title || entry.degree,
+        organization: entry.organization || entry.institution,
+        currentPoints: entry.points,
+      });
+
+      if (response.improvedPoints) {
+        const updatedEntries = [...entries];
+        updatedEntries[entryIndex] = {
+          ...updatedEntries[entryIndex],
+          points: response.improvedPoints,
+        };
+        onChange(updatedEntries);
+        toast.success("Points improved with AI!");
+      }
+    } catch (error) {
+      console.error("AI improvement error:", error);
+      toast.error("Failed to improve points with AI");
+    } finally {
+      setIsImproving(false);
+    }
+  };
+
   const handleAdd = handleValidation((data) => {
+    // Validate project links if present
+    if (type === "Project" && data.links && data.links.length > 0) {
+      for (const link of data.links) {
+        if (link.label && !link.url) {
+          toast.error("Please provide a URL for all link labels");
+          return;
+        }
+        if (link.url && !link.url.startsWith("http")) {
+          toast.error("Please enter valid URLs starting with http:// or https://");
+          return;
+        }
+      }
+    }
+
+    // Validate minimum points for projects
+    const filteredPoints = (data.points || []).filter((p) => p && p.trim() !== "");
+    if (type === "Project" && filteredPoints.length < 3) {
+      toast.error("Projects require at least 3 points");
+      return;
+    }
+
     const formattedEntry = {
       ...data,
       startDate: formatDisplayDate(data.startDate),
       endDate: data.current ? "" : formatDisplayDate(data.endDate),
       links: data.links || [], // Include links in the entry
-      points: (data.points || []).filter((p) => p && p.trim() !== ""),
+      points: filteredPoints,
     };
 
     onChange([...entries, formattedEntry]);
@@ -85,8 +140,6 @@ export function EntryForm({ type, entries, onChange }) {
     const newEntries = entries.filter((_, i) => i !== index);
     onChange(newEntries);
   };
-
-  // Remove all description and improvement logic
 
   // Add/remove links for projects
   const addLink = () => {
@@ -118,14 +171,29 @@ export function EntryForm({ type, entries, onChange }) {
                   ? `${item.degree} @ ${item.institution}`
                   : `${item.title} @ ${item.organization}`}
               </CardTitle>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                onClick={() => handleDelete(index)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleImproveWithAI(index)}
+                  disabled={isImproving || !item.points || item.points.length === 0}
+                >
+                  {isImproving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Improve with AI
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  onClick={() => handleDelete(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
@@ -256,24 +324,22 @@ export function EntryForm({ type, entries, onChange }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Input
-                      placeholder="Title/Position"
-                      {...register("title")}
-                      error={errors.title}
+                      placeholder={isEducation ? "Degree" : "Title"}
+                      {...register(isEducation ? "degree" : "title")}
+                      error={errors[isEducation ? "degree" : "title"]}
                     />
-                    {errors.title && (
-                      <p className="text-sm text-red-500">{errors.title.message}</p>
+                    {errors[isEducation ? "degree" : "title"] && (
+                      <p className="text-sm text-red-500">{errors[isEducation ? "degree" : "title"].message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
                     <Input
-                      placeholder="Organization/Company"
-                      {...register("organization")}
-                      error={errors.organization}
+                      placeholder={isEducation ? "Institution/University" : "Organization"}
+                      {...register(isEducation ? "institution" : "organization")}
+                      error={errors[isEducation ? "institution" : "organization"]}
                     />
-                    {errors.organization && (
-                      <p className="text-sm text-red-500">
-                        {errors.organization.message}
-                      </p>
+                    {errors[isEducation ? "institution" : "organization"] && (
+                      <p className="text-sm text-red-500">{errors[isEducation ? "institution" : "organization"].message}</p>
                     )}
                   </div>
                 </div>
@@ -286,9 +352,7 @@ export function EntryForm({ type, entries, onChange }) {
                       error={errors.startDate}
                     />
                     {errors.startDate && (
-                      <p className="text-sm text-red-500">
-                        {errors.startDate.message}
-                      </p>
+                      <p className="text-sm text-red-500">{errors.startDate.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -299,9 +363,7 @@ export function EntryForm({ type, entries, onChange }) {
                       error={errors.endDate}
                     />
                     {errors.endDate && (
-                      <p className="text-sm text-red-500">
-                        {errors.endDate.message}
-                      </p>
+                      <p className="text-sm text-red-500">{errors.endDate.message}</p>
                     )}
                   </div>
                 </div>
@@ -394,7 +456,12 @@ export function EntryForm({ type, entries, onChange }) {
                   />
                 );
               })}
-              <p className="text-xs text-muted-foreground mt-1">You can add up to 4 points. All are optional for education.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {type === "Project"
+                  ? "You can add up to 4 points. Minimum 3 points required for projects."
+                  : "You can add up to 4 points. All are optional for education."
+                }
+              </p>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end space-x-2">

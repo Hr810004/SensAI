@@ -51,6 +51,7 @@ export const entrySchema = z
     endDate: z.string().optional(),
     current: z.boolean().default(false),
     links: z.array(linkSchema).optional(), // Optional links for projects
+    points: z.array(z.string()).optional(), // Points for experience and projects
   })
   .refine(
     (data) => {
@@ -67,7 +68,7 @@ export const entrySchema = z
 
 // Schema for achievements with optional links
 export const achievementSchema = z.object({
-  text: z.string().min(1, "Achievement text is required"),
+  points: z.array(z.string()).min(1, "At least one point is required"),
   url: z.string().url("Invalid URL").optional(),
 });
 
@@ -81,6 +82,7 @@ export const educationEntrySchema = z.object({
   current: z.boolean().default(false),
   description: z.string().optional(),
   gpa: z.string().optional(), // GPA (optional)
+  points: z.array(z.string()).optional(), // Points for education
 });
 
 export const resumeSchema = z.object({
