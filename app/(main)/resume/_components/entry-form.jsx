@@ -29,6 +29,8 @@ const formatDisplayDate = (dateString) => {
 
 export function EntryForm({ type, entries, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
   const [isImproving, setIsImproving] = useState(false);
 
   const isEducation = type === "Education";
@@ -141,6 +143,41 @@ export function EntryForm({ type, entries, onChange }) {
     onChange(newEntries);
   };
 
+  // Edit entry handler
+  const handleEdit = (index) => {
+    const entry = entries[index];
+    if (!entry) return;
+    setIsEditing(true);
+    setEditIndex(index);
+    reset({
+      ...entry,
+      startDate: entry.startDate || "",
+      endDate: entry.endDate || "",
+      points: entry.points || ["", "", "", ""],
+      links: entry.links || [],
+    });
+    setIsAdding(true);
+  };
+
+  // Save edited entry
+  const handleSaveEdit = handleValidation((data) => {
+    const filteredPoints = (data.points || []).filter((p) => p && p.trim() !== "");
+    const formattedEntry = {
+      ...data,
+      startDate: formatDisplayDate(data.startDate),
+      endDate: data.current ? "" : formatDisplayDate(data.endDate),
+      links: data.links || [],
+      points: filteredPoints,
+    };
+    const updatedEntries = [...entries];
+    updatedEntries[editIndex] = formattedEntry;
+    onChange(updatedEntries);
+    reset();
+    setIsAdding(false);
+    setIsEditing(false);
+    setEditIndex(null);
+  });
+
   // Add/remove links for projects
   const addLink = () => {
     const currentLinks = watch("links") || [];
@@ -184,6 +221,15 @@ export function EntryForm({ type, entries, onChange }) {
                     <Sparkles className="h-4 w-4" />
                   )}
                   Improve with AI
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => handleEdit(index)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
                 </Button>
                 <Button
                   variant="outline"
@@ -234,7 +280,7 @@ export function EntryForm({ type, entries, onChange }) {
       {isAdding && (
         <Card>
           <CardHeader>
-            <CardTitle>Add {type}</CardTitle>
+            <CardTitle>{isEditing ? `Edit ${type}` : `Add ${type}`}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {isEducation ? (
@@ -324,7 +370,15 @@ export function EntryForm({ type, entries, onChange }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Input
-                      placeholder={isEducation ? "Degree" : "Title"}
+                      placeholder={
+                        type === "Experience"
+                          ? "Position"
+                          : type === "Project"
+                          ? "Project Title"
+                          : isEducation
+                          ? "Degree"
+                          : "Title"
+                      }
                       {...register(isEducation ? "degree" : "title")}
                       error={errors[isEducation ? "degree" : "title"]}
                     />
@@ -334,7 +388,15 @@ export function EntryForm({ type, entries, onChange }) {
                   </div>
                   <div className="space-y-2">
                     <Input
-                      placeholder={isEducation ? "Institution/University" : "Organization"}
+                      placeholder={
+                        type === "Experience"
+                          ? "Organization"
+                          : type === "Project"
+                          ? "Technologies Used (comma separated)"
+                          : isEducation
+                          ? "Institution/University"
+                          : "Organization"
+                      }
                       {...register(isEducation ? "institution" : "organization")}
                       error={errors[isEducation ? "institution" : "organization"]}
                     />
@@ -343,6 +405,19 @@ export function EntryForm({ type, entries, onChange }) {
                     )}
                   </div>
                 </div>
+                {/* Location field for Experience only */}
+                {!isEducation && type !== "Project" && (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Location (e.g., Ahmedabad, Gujarat, India — Hybrid)"
+                      {...register("location")}
+                      error={errors.location}
+                    />
+                    {errors.location && (
+                      <p className="text-sm text-red-500">{errors.location.message}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -436,16 +511,16 @@ export function EntryForm({ type, entries, onChange }) {
                   if (idx === 1) placeholder = "Technology/tools used";
                   if (idx === 2) placeholder = "Quantifiable impact/result";
                   if (idx === 3) placeholder = "Future scope or learning";
+                } else if (type === "Project") {
+                  if (idx === 0) placeholder = "Key feature or functionality";
+                  if (idx === 1) placeholder = "Tech stack highlight";
+                  if (idx === 2) placeholder = "Impact or result";
+                  if (idx === 3) placeholder = "Future improvement or scope";
                 } else if (type === "Education") {
                   if (idx === 0) placeholder = "Relevant coursework or subject";
                   if (idx === 1) placeholder = "Project or achievement";
-                  if (idx === 2) placeholder = "Extracurricular or leadership";
-                  if (idx === 3) placeholder = "Future scope or learning";
-                } else if (type === "Project") {
-                  if (idx === 0) placeholder = "Project goal or feature";
-                  if (idx === 1) placeholder = "Technology/tools used";
-                  if (idx === 2) placeholder = "Impact or result";
-                  if (idx === 3) placeholder = "Future scope or learning";
+                  if (idx === 2) placeholder = "Club/position or responsibility";
+                  if (idx === 3) placeholder = "Other academic highlight";
                 }
                 return (
                   <Input
@@ -464,21 +539,28 @@ export function EntryForm({ type, entries, onChange }) {
               </p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end space-x-2">
+          <CardFooter className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => {
-                reset();
                 setIsAdding(false);
+                setIsEditing(false);
+                setEditIndex(null);
+                reset();
               }}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleAdd}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Add Entry
-            </Button>
+            {isEditing ? (
+              <Button type="button" onClick={handleSaveEdit} className="w-full">
+                <Save className="h-4 w-4 mr-2" /> Save Changes
+              </Button>
+            ) : (
+              <Button type="button" onClick={handleAdd} className="w-full">
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Entry
+              </Button>
+            )}
           </CardFooter>
         </Card>
       )}
@@ -500,6 +582,8 @@ export function EntryForm({ type, entries, onChange }) {
 // AchievementForm component for handling achievements with optional links
 export function AchievementForm({ achievements, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
   const [newAchievement, setNewAchievement] = useState({ points: ["", "", "", ""], url: "" });
 
   const handleAdd = () => {
@@ -517,6 +601,37 @@ export function AchievementForm({ achievements, onChange }) {
     setIsAdding(false);
   };
 
+  const handleEdit = (index) => {
+    const achievement = achievements[index];
+    if (!achievement) return;
+    setIsEditing(true);
+    setEditIndex(index);
+    setNewAchievement({
+      points: achievement.points || ["", "", "", ""],
+      url: achievement.url || "",
+    });
+    setIsAdding(true);
+  };
+
+  const handleSaveEdit = () => {
+    const filteredPoints = (newAchievement.points || []).filter((p) => p && p.trim() !== "");
+    if (filteredPoints.length === 0) {
+      toast.error("At least one point is required");
+      return;
+    }
+    if (newAchievement.url && !newAchievement.url.startsWith("http")) {
+      toast.error("Please enter a valid URL starting with http:// or https://");
+      return;
+    }
+    const updatedAchievements = [...achievements];
+    updatedAchievements[editIndex] = { points: filteredPoints, url: newAchievement.url };
+    onChange(updatedAchievements);
+    setNewAchievement({ points: ["", "", "", ""], url: "" });
+    setIsAdding(false);
+    setIsEditing(false);
+    setEditIndex(null);
+  };
+
   const handleDelete = (index) => {
     const newAchievements = achievements.filter((_, i) => i !== index);
     onChange(newAchievements);
@@ -531,14 +646,24 @@ export function AchievementForm({ achievements, onChange }) {
               <CardTitle className="text-sm font-medium">
                 Achievement {index + 1}
               </CardTitle>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                onClick={() => handleDelete(index)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => handleEdit(index)}
+                >
+                  <Pencil className="h-4 w-4" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  onClick={() => handleDelete(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <ul className="mt-2 list-disc ml-4 text-sm">
@@ -561,7 +686,7 @@ export function AchievementForm({ achievements, onChange }) {
       {isAdding && (
         <Card>
           <CardHeader>
-            <CardTitle>Add Achievement</CardTitle>
+            <CardTitle>{isEditing ? "Edit Achievement" : "Add Achievement"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -589,21 +714,28 @@ export function AchievementForm({ achievements, onChange }) {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end space-x-2">
+          <CardFooter className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => {
                 setNewAchievement({ points: ["", "", "", ""], url: "" });
                 setIsAdding(false);
+                setIsEditing(false);
+                setEditIndex(null);
               }}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleAdd}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Add Achievement
-            </Button>
+            {isEditing ? (
+              <Button type="button" onClick={handleSaveEdit} className="w-full">
+                <Save className="h-4 w-4 mr-2" /> Save Changes
+              </Button>
+            ) : (
+              <Button type="button" onClick={handleAdd} className="w-full">
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Achievement
+              </Button>
+            )}
           </CardFooter>
         </Card>
       )}

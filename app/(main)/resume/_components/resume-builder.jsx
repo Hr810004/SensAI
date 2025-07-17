@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, Loader2, Save } from "lucide-react";
+import { Download, Loader2, Save, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +32,7 @@ export default function ResumeBuilder({ initialContent }) {
     watch,
     formState: { errors },
     reset,
+    setValue,
   } = useForm({
     resolver: zodResolver(resumeSchema),
     defaultValues: {
@@ -180,8 +181,8 @@ ${(project.points || []).map(pt => `     \\resumeItem{${escapeLatex(pt)}}`).join
 \\section{Experience / Internship}
   \\resumeSubHeadingListStart
 ${experience.map(exp => `    \\resumeSubheading
-      {${escapeLatex(exp.title)}} {${exp.startDate || ""} -- ${exp.current ? "Present" : exp.endDate || ""}}
-      {${escapeLatex(exp.organization)}}{}
+      {${escapeLatex(exp.organization)} -- ${escapeLatex(exp.title)}} {${exp.startDate || ""} -- ${exp.current ? "Present" : exp.endDate || ""}}
+      {${escapeLatex(exp.location || "")}}{}
       \\resumeItemListStart
 ${(exp.points || []).map(pt => `        \\resumeItem{${escapeLatex(pt)}}`).join('\n')}
       \\resumeItemListEnd`).join('\n')}
@@ -701,19 +702,22 @@ ${achievementsLatex}
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => field.onChange(field.value.filter((_, i) => i !== index))}
+                            type="button"
+                            onClick={() => setValue("skills", field.value.filter((_, i) => i !== index))}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
                           </Button>
                         </div>
                       ))}
+                      <p className="text-xs text-muted-foreground mt-1">Format: Programming Languages: Java, Python, ...</p>
                       <Button
                         variant="outline"
-                        onClick={() => field.onChange([...field.value, { text: "" }])
-                        }
+                        className="w-full"
+                        type="button"
+                        onClick={() => setValue("skills", [...field.value, { text: "" }])}
                         disabled={field.value.length >= 5}
                       >
-                        Add Skill
+                        <PlusCircle className="h-4 w-4 mr-2" /> Add Skill
                       </Button>
                     </div>
                   )}

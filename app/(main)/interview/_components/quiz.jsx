@@ -70,6 +70,7 @@ export default function Quiz() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then((stream) => {
           setMediaStream(stream);
+          console.log('mediaStream set:', stream);
           const recorder = new window.MediaRecorder(stream);
           setMediaRecorder(recorder);
           const chunks = [];

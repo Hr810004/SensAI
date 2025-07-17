@@ -47,6 +47,7 @@ export const entrySchema = z
   .object({
     title: z.string().min(1, "Title is required"),
     organization: z.string().min(1, "Organization is required"),
+    location: z.string().min(1, "Location is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().optional(),
     current: z.boolean().default(false),

@@ -195,6 +195,7 @@ export default function CoverLetterGenerator() {
                   placeholder="https://linkedin.com/in/your-profile"
                   {...register("applicantLinkedin")}
                 />
+                {/* Only show error if a value is entered and it's invalid */}
                 {errors.applicantLinkedin && (
                   <p className="text-sm text-red-500">
                     {errors.applicantLinkedin.message}
