@@ -1,26 +1,23 @@
 export const testimonial = [
   {
     quote:
-      "The AI-powered interview prep was a game-changer. Landed my dream job at a top tech company!",
-    author: "Sarah Chen",
-    image: "https://randomuser.me/api/portraits/women/75.jpg",
+      "The AI-driven security insights and interview prep helped me crack my first cybersecurity analyst role. Highly recommended!",
+    author: "Harshrajsinh Jadeja",
+    role: "Cybersecurity Analyst",
+    company: "SecureTech Solutions",
+  },
+  {
+    quote:
+      "The resume builder and skill gap analysis gave me a clear roadmap to upskill. My resume now stands out to ML recruiters!",
+    author: "Rudra Vyas",
+    role: "Machine Learning Engineer",
+    company: "NextGen Software",
+  },
+  {
+    quote:
+      "Mock interviews and coding quizzes on SensAI made me confident for real interviews. I received multiple job offers!",
+    author: "Rishi Parvadiya",
     role: "Software Engineer",
-    company: "Tech Giant Co.",
-  },
-  {
-    quote:
-      "The industry insights helped me pivot my career successfully. The salary data was spot-on!",
-    author: "Michael Rodriguez",
-    image: "https://randomuser.me/api/portraits/men/75.jpg",
-    role: "Product Manager",
-    company: "StartUp Inc.",
-  },
-  {
-    quote:
-      "My resume's ATS score improved significantly. Got more interviews in two weeks than in six months!",
-    author: "Priya Patel",
-    image: "https://randomuser.me/api/portraits/women/74.jpg",
-    role: "Marketing Director",
-    company: "Global Corp",
+    company: "AI Innovators",
   },
 ];

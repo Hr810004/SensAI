@@ -1,8 +1,8 @@
 # 🚀 SensAI – AI-Powered Career Coach Platform
 
-## �� Project Overview
+## 📝 Project Overview
 
-**SensAI** is your all-in-one AI-powered career coach. It helps you advance your professional journey with personalized resume building, cover letter generation, mock interview practice, skill gap analysis, and real-time industry insights. SensAI is designed for job seekers, professionals, and career coaches who want to leverage AI for smarter, faster career growth.
+**SensAI** is an all-in-one AI-powered career coach platform for job seekers, professionals, and career coaches. It streamlines resume and cover letter creation, mock interview practice, skill gap analysis, and delivers real-time industry insights—empowering users to advance their careers with AI-driven guidance and analytics.
 
 ---
 
@@ -11,42 +11,60 @@
 - **AI-Powered Career Guidance**
   - Personalized advice and insights based on your industry, experience, and target role.
   - Weekly-updated industry insights: salary data, in-demand skills, and market trends for 50+ industries.
-  - Skill gap analysis and recommendations powered by Google Gemini AI.
+  - Skill gap analysis and actionable recommendations powered by Google Gemini AI.
 
 - **Smart Resume Builder**
-  - Point-based input for all sections (experience, education, projects, achievements) matching a LaTeX template.
+  - **Dynamic LaTeX Resume Export:** Instantly converts your input into a professional LaTeX resume, with seamless export to PDF or LaTeX—no manual formatting required.
+  - **Gemini AI Resume Improvement:** Uses Google Gemini AI to analyze and suggest improvements for your resume bullet points, making them more impactful and tailored to your target role/company.
+  - **'Improve with AI' for Points:** One-click AI enhancement of resume points for clarity, quantification, and professionalism.
   - ATS-optimized resume generation with AI feedback and scoring.
-  - Resume upload and AI analysis for skill gaps and improvement suggestions.
-  - LaTeX export for professional formatting.
 
 - **Cover Letter Generator**
-  - Instantly generate unique, role-specific cover letters tailored to your background and job description.
-  - Business letter structure in markdown, avoiding repetition and clichés.
+  - Instantly generates unique, role- and company-specific cover letters tailored to your background and job description.
+  - Uses business letter structure in markdown, avoiding repetition and clichés.
+  - AI ensures each letter is concise, relevant, and personalized for the job.
 
 - **Mock Interview & Quiz Preparation**
-  - AI-generated, role-specific quizzes and mock interviews.
-  - DSA questions include both LeetCode-style and code snippet-based formats.
+  - **Role/Company-Specific Quizzes:** AI-generated quizzes and mock interviews adapt to your chosen role and company.
+  - **LeetCode & Code Snippet DSA:** Includes both LeetCode-style and code snippet-based technical questions.
+  - **Tab Switching Detection:** Monitors and records tab switches during quizzes to ensure focus and simulate real interview conditions.
+  - **Face Detection During Quiz:** Uses webcam and face-api.js to ensure the candidate is present and attentive during the quiz; warns or flags if no face is detected for a period.
   - Quiz UI supports navigation, answer validation, and robust error handling.
-  - Performance analytics and AI-generated improvement tips.
+  - Performance analytics and AI-generated improvement tips after each session.
+
+- **Skill Gap Analysis**
+  - Personalized analysis based on your target role and company.
+  - Actionable, AI-driven recommendations to close skill gaps and boost job-match accuracy.
+  - Visualizes your strengths and areas for improvement on the dashboard.
 
 - **Industry Insights**
-  - Real-time trends, salary data, and market analysis for 50+ industries and sub-industries.
+  - Real-time, AI-updated trends, salary data, and market analysis for 50+ industries and sub-industries.
   - Insights include salary ranges, growth rates, demand levels, top skills, market outlook, and more.
 
 - **User Onboarding & Profile**
-  - Guided onboarding for industry, sub-industry, experience, skills, and target role.
+  - Guided onboarding collects your industry, sub-industry, experience, skills, and target role for hyper-personalized guidance.
   - Clerk authentication for secure sign-in/sign-up.
-  - LeetCode stats integration.
 
-- **Modern Dashboard & UI**
+- **Modern Dashboard & Analytics**
   - Responsive, accessible dashboard with dark mode.
-  - Quick access to all tools and personalized analytics.
-  - Built with Next.js, React 19, TailwindCSS, and shadcn/ui.
+  - Quick access to all tools, personalized analytics, and performance charts.
+  - **Resume Upload & AI Analysis:** Upload your existing resume (PDF/LaTeX) for instant AI-driven feedback, ATS scoring, and actionable recommendations for improvement.
+  - **Target Role & Company Analysis:** Get resume feedback and suggestions tailored to your desired job title and company, increasing your chances of success.
+  - **LeetCode Stats & Analysis:** Integrates your LeetCode profile, analyzes your coding strengths and weaknesses, and recommends specific problems to solve based on your skill gaps and target roles.
+  - Skill gap visualization and improvement tracking.
 
 - **Security & Deployment**
   - All sensitive routes protected by Clerk middleware.
   - Data encrypted and securely stored.
   - Ready for deployment on Vercel.
+
+---
+
+## 🖼️ Screenshots
+
+| Dashboard | Resume Builder | Mock Interview |
+|-----------|---------------|---------------|
+| ![Dashboard](public/banner.jpeg) | ![Resume Builder](public/banner2.jpeg) | ![Mock Interview](public/banner3.jpeg) |
 
 ---
 
@@ -61,6 +79,7 @@
 - **TailwindCSS & shadcn/ui** (UI components)
 - **Recharts** (Data visualization)
 - **Zod, React Hook Form** (Validation & forms)
+- **face-api.js** (Facial analysis for future features)
 
 ---
 
@@ -138,3 +157,40 @@ Built by [Harsh810](https://harsh810.vercel.app) – Inspired by modern SaaS and
   All data is encrypted and securely stored. Clerk authentication ensures your information is protected.
 
 ---
+
+## 📄 Terms & Privacy Policy
+
+By using SensAI, you agree to our terms of service and privacy policy. Your data is securely stored and never shared with third parties. For full details, please refer to our privacy policy document or contact us for more information.
+
+---
+
+## 📸 Screenshots
+
+Below are example screenshots for each major feature. Replace the image paths with your actual screenshot files in the `public/` directory.
+
+| Feature                        | Screenshot                                      |
+|--------------------------------|-------------------------------------------------|
+| Dashboard                      | ![Dashboard](public/banner.jpeg)                |
+| Resume Builder (LaTeX Export)   | ![Resume Builder](public/banner2.jpeg)          |
+| Cover Letter Generator          | ![Cover Letter](public/cover-letter.png)        |
+| Quiz & Mock Interview           | ![Quiz](public/quiz.png)                        |
+| Face Detection in Quiz          | ![Face Detection](public/face-detection.png)    |
+| Tab Switching Detection         | ![Tab Switch](public/tab-switch.png)            |
+| Resume Upload & AI Analysis     | ![Resume Upload](public/resume-upload.png)      |
+| LeetCode Stats & Analysis       | ![LeetCode](public/leetcode.png)                |
+| Skill Gap Visualization         | ![Skill Gap](public/skill-gap.png)              |
+| Industry Insights               | ![Industry Insights](public/industry.png)       |
+
+> **Note:** Place your screenshots in the `public/` directory and update the image paths as needed.
+
+---
+
+## ⚠️ Intellectual Property Notice
+
+The source code and features of this project are the intellectual property of Harsh810. Copying, modifying, or reusing any part of this code or its features is strictly prohibited.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
