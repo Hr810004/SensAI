@@ -26,12 +26,12 @@ export default async function Header() {
     <header className="fixed top-0 w-full border-b bg-background/80 backdrop-blur-md z-50 supports-[backdrop-filter]:bg-background/60">
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/">
-          <div className="h-16 w-16 overflow-hidden flex items-center justify-center bg-background rounded">
+          <div className="h-24 w-24 overflow-hidden flex items-center justify-center bg-background rounded">
             <Image
               src={"/logo.png"}
               alt="Sensai Logo"
-              width={64}
-              height={64}
+              width={96}
+              height={96}
               className="h-full w-full object-cover"
             />
           </div>
