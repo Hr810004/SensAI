@@ -417,6 +417,12 @@ export default function Quiz() {
     return <PreQuizModal open={preQuizOpen} onStart={handleStartQuiz} onOpenChange={setPreQuizOpen} />;
   }
 
+  // Always define sectionNames safely
+  const sectionNames = quizSections ? Object.keys(quizSections) : [];
+  const subsectionNames = quizSections && currentSection && quizSections[currentSection]
+    ? Object.keys(quizSections[currentSection])
+    : [];
+
   return (
     <div>
       {/* Video/audio preview visible during quiz loading and quiz, but not before or after */}
@@ -426,6 +432,7 @@ export default function Quiz() {
             ref={videoRef}
             autoPlay
             playsInline
+            muted
             style={{ width: 320, height: 240, background: "#000", borderRadius: 8 }}
           />
           <div style={{ height: 10, width: 320, background: "#222", marginTop: 8, borderRadius: 4 }}>
