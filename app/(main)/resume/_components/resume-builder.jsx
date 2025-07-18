@@ -15,7 +15,7 @@ import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
 import { resumeSchema } from "@/app/lib/schema";
 
-export default function ResumeBuilder({ initialContent }) {
+export default function ResumeBuilder({ initialContent, resumeId }) {
   const [activeTab, setActiveTab] = useState("form");
   const { user } = useUser();
   const [latexCode, setLatexCode] = useState("");
@@ -55,28 +55,30 @@ export default function ResumeBuilder({ initialContent }) {
   // Load existing resume data
   useEffect(() => {
     const loadResume = async () => {
-      try {
-        const resume = await getResume();
-        if (resume) {
-          // Reset form with existing data
-          reset({
-            contactInfo: resume.contactInfo || {},
-            skills: resume.skills || [],
-            experience: resume.experience || [],
-            education: resume.education || [],
-            projects: resume.projects || [],
-          });
-          setAchievements(resume.achievements || []);
+      if (resumeId) {
+        // Load specific resume by ID
+        const res = await fetch(`/api/resume/${resumeId}`);
+        if (res.ok) {
+          const resume = await res.json();
+          if (resume) {
+            reset({
+              contactInfo: resume.contactInfo || {},
+              skills: resume.skills || [],
+              experience: resume.experience || [],
+              education: resume.education || [],
+              projects: resume.projects || [],
+            });
+            setAchievements(resume.achievements || []);
+            if (resume.content) setLatexCode(resume.content);
+          }
         }
-      } catch (error) {
-        console.error("Error loading resume:", error);
-      } finally {
-        setIsLoading(false);
+      } else if (initialContent) {
+        setLatexCode(initialContent);
       }
+      setIsLoading(false);
     };
-
     loadResume();
-  }, [reset]);
+  }, [reset, resumeId, initialContent]);
 
   // Watch form fields for updates
   const formValues = watch();
@@ -468,10 +470,23 @@ ${achievementsLatex}
 
   const onSubmit = async (data) => {
     try {
-      // Save the structured form data
-      await saveResumeFn({ ...data, achievements });
+      if (resumeId) {
+        await fetch(`/api/resume/${resumeId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, achievements }),
+        });
+        toast.success("Resume updated successfully!");
+      } else {
+        await fetch(`/api/resume`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, achievements }),
+        });
+        toast.success("Resume created successfully!");
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      toast.error(error.message || "Failed to save resume");
     }
   };
 

@@ -27,7 +27,7 @@ model User {
   // Relations
   skills           String[] // Array of skills
   assessments      Assessment[]
-  resume           Resume?
+  resume           Resume[] // Allow multiple resumes per user
   coverLetter      CoverLetter[]
 }
 
@@ -47,8 +47,10 @@ model Assessment {
 
 model Resume {
   id     String @id @default(cuid())
-  userId String @unique // One resume per user
+  userId String // Remove unique constraint to allow multiple resumes per user
   user   User   @relation(fields: [userId], references: [id])
+
+  title   String // New: Resume title
 
   // Contact Information
   contactInfo Json // { name, location, phone, email, linkedin?, github? }
@@ -67,6 +69,8 @@ model Resume {
   feedback  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId]) // Add index for efficient queries
 }
 
 model CoverLetter {

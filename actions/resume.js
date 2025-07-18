@@ -123,3 +123,56 @@ export async function improveWithAI({ type, title, organization, currentPoints }
     throw new Error(e.message || 'Failed to improve resume points');
   }
 }
+
+export async function listResumes() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  return await db.resume.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
+export async function getResumeById(id) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  return await db.resume.findUnique({
+    where: { id, userId },
+  });
+}
+
+export async function createResume(data) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  return await db.resume.create({
+    data: { ...data, userId },
+  });
+}
+
+export async function updateResume(id, data) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  return await db.resume.update({
+    where: { id, userId },
+    data,
+  });
+}
+
+export async function deleteResume(id) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  return await db.resume.delete({
+    where: { id, userId },
+  });
+}
+
+export async function duplicateResume(id) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  const resume = await db.resume.findUnique({ where: { id, userId } });
+  if (!resume) throw new Error("Resume not found");
+  const { title, ...rest } = resume;
+  return await db.resume.create({
+    data: { ...rest, userId, title: `${title} (Copy)` },
+  });
+}
