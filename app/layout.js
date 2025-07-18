@@ -37,8 +37,7 @@ export default function RootLayout({ children }) {
             <footer className="bg-background border-t py-10 mt-10">
               <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-300">
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="SensAI Logo" className="h-24 w-24" />
-                  <span className="font-bold text-xl tracking-tight">SensAI</span>
+                  <img src="/logo.png" alt="SensAI Logo" className="h-12 w-16" />
                 </div>
                 <div className="text-center md:text-left max-w-md text-sm">
                   SensAI is an AI-powered career coach platform for personalized resume building, interview prep, and career analytics. Built with Next.js, Gemini AI, and love.
