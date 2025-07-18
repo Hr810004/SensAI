@@ -4,6 +4,24 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+async function getGeminiResponse(prompt, models) {
+  for (const modelName of models) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (e) {
+      if (e.message && (e.message.includes('overloaded') || e.message.includes('503'))) {
+        continue; // Try next model
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error('All Gemini models are overloaded. Please try again later.');
+}
+
 export async function generateQuizPrompt({ company, role, user }) {
   const industry = user?.industry || role || "";
   const skills = user?.skills || [];
@@ -37,12 +55,9 @@ Generate a JSON mock interview quiz for a candidate applying for '${role || indu
 - Open-ended: question, explanation.
 - Return ONLY the JSON, no extra text or markdown.
 `;
+  const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const text = await getGeminiResponse(prompt, models);
     const cleanedText = text.replace(/```(?:json)?\n?/g, '').trim();
     const quiz = JSON.parse(cleanedText);
     return quiz;
@@ -109,13 +124,10 @@ export async function saveQuizResult(questions, answers, score) {
       Keep the response under 2 sentences and make it encouraging.
       Don't explicitly mention the mistakes, instead focus on what to learn/practice.
     `;
-
+    const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
     try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-      const tipResult = await model.generateContent(improvementPrompt);
-
-      improvementTip = tipResult.response.text().trim();
+      const tipText = await getGeminiResponse(improvementPrompt, models);
+      improvementTip = tipText.trim();
       console.log(improvementTip);
     } catch (error) {
       console.error("Error generating improvement tip:", error);

@@ -1,21 +1,31 @@
+import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+async function getGeminiResponse(prompt, models) {
+  for (const modelName of models) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (e) {
+      if (e.message && (e.message.includes('overloaded') || e.message.includes('503'))) {
+        continue; // Try next model
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error('All Gemini models are overloaded. Please try again later.');
+}
+
 export async function POST(req) {
+  const { feedbackPrompt } = await req.json();
+  const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {
-    const { question, answer } = await req.json();
-    const prompt = `You are an expert interview coach. Here is a technical interview question and a candidate's answer. Give concise, constructive feedback (2-3 sentences) on the answer, focusing on clarity, relevance, and how it could be improved.\n\nQuestion: ${question}\nAnswer: ${answer}`;
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const feedback = response.text().trim();
-    return new Response(JSON.stringify({ feedback }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    return new Response(error?.message || "Failed to get feedback.", {
-      status: 400,
-    });
+    const text = await getGeminiResponse(feedbackPrompt, models);
+    return NextResponse.json({ feedback: text.trim() });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 } 

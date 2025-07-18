@@ -10,7 +10,7 @@ export default function QuizResult({ result, videoUrl, onStartNew, hideStartNew 
 
   return (
     <div className="mx-auto">
-      <h1 className="flex items-center gap-2 text-3xl hero-gradient-cyber animate-gradient text-transparent bg-clip-text">
+      <h1 className="flex items-center gap-2 text-3xl hero-gradient-cyber animate-gradient text-transparent bg-clip-text leading-[1.25] mb-4 overflow-visible">
         <Trophy className="h-6 w-6 text-yellow-500" />
         Quiz Results
       </h1>

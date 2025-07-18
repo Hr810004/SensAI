@@ -52,14 +52,14 @@ export function EntryForm({ type, entries, onChange }) {
           startDate: "",
           endDate: "",
           current: false,
-          points: ["", "", "", ""], // Up to 4 points, optional for education
+          points: ["", "", "", ""], 
         }
       : {
           title: "",
           organization: "",
           startDate: "",
           endDate: "",
-          points: ["", "", "", ""], // Up to 4 points
+          points: ["", "", "", ""],
           current: false,
           links: [],
         },

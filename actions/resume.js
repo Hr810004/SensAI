@@ -5,8 +5,23 @@ import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+async function getGeminiResponse(prompt, models) {
+  for (const modelName of models) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (e) {
+      if (e.message && (e.message.includes('overloaded') || e.message.includes('503'))) {
+        continue; // Try next model
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error('All Gemini models are overloaded. Please try again later.');
+}
 
 export async function saveResume(formData) {
   const { userId } = await auth();
@@ -82,7 +97,6 @@ export async function improveWithAI({ type, title, organization, currentPoints }
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
-
   if (!user) throw new Error("User not found");
 
   const prompt = `
@@ -95,30 +109,17 @@ export async function improveWithAI({ type, title, organization, currentPoints }
     
     Requirements:
     1. Keep the same number of points
-    2. Make each point more specific with quantifiable achievements where possible
-    3. Use strong action verbs
-    4. Focus on results and impact
-    5. Make them more professional and compelling
-    6. Keep each point concise (1-2 lines max)
-    7. Maintain the original meaning but enhance the impact
-    
-    Return only the improved points as a JSON array of strings.
+    2. Use action verbs and quantify achievements where possible
+    3. Make each point unique and avoid repetition
+    4. Use concise, professional language
+    5. Return only the improved points as a JSON array of strings
   `;
-
+  const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response.text().trim();
-    
-    // Try to parse as JSON, if it fails, return the text as-is
-    try {
-      const improvedPoints = JSON.parse(response);
-      return { improvedPoints: Array.isArray(improvedPoints) ? improvedPoints : currentPoints };
-    } catch (parseError) {
-      console.error("Failed to parse AI response as JSON:", parseError);
-      return { improvedPoints: currentPoints };
-    }
-  } catch (error) {
-    console.error("Error improving with AI:", error);
-    throw new Error("Failed to improve points with AI");
+    const text = await getGeminiResponse(prompt, models);
+    const improvedPoints = JSON.parse(text.replace(/```(?:json)?\n?/g, '').trim());
+    return { improvedPoints };
+  } catch (e) {
+    throw new Error(e.message || 'Failed to improve resume points');
   }
 }

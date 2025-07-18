@@ -9,7 +9,7 @@ export default async function InterviewPrepPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-6xl font-bold hero-gradient-cyber animate-gradient text-transparent bg-clip-text">
+        <h1 className="text-6xl font-bold hero-gradient-cyber animate-gradient text-transparent bg-clip-text leading-[1.25] mb-4 overflow-visible">
           Interview Preparation
         </h1>
       </div>

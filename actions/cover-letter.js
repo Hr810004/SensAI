@@ -4,8 +4,23 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+async function getGeminiResponse(prompt, models) {
+  for (const modelName of models) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (e) {
+      if (e.message && (e.message.includes('overloaded') || e.message.includes('503'))) {
+        continue; // Try next model
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error('All Gemini models are overloaded. Please try again later.');
+}
 
 export async function generateCoverLetter(data) {
   const { userId } = await auth();
@@ -52,10 +67,9 @@ export async function generateCoverLetter(data) {
     
     Format the letter in markdown with proper business letter structure including contact information header.
   `;
-
+  const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {
-    const result = await model.generateContent(prompt);
-    const content = result.response.text().trim();
+    const content = (await getGeminiResponse(prompt, models)).trim();
 
     const coverLetter = await db.coverLetter.create({
       data: {
@@ -84,7 +98,7 @@ export async function generateCoverLetter(data) {
     return coverLetter;
   } catch (error) {
     console.error("Error generating cover letter:", error.message);
-    throw new Error("Failed to generate cover letter");
+    throw new Error('Failed to generate cover letter');
   }
 }
 

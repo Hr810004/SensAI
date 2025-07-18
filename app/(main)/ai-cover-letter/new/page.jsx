@@ -15,7 +15,7 @@ export default function NewCoverLetterPage() {
         </Link>
 
         <div className="pb-6">
-          <h1 className="text-6xl font-bold hero-gradient-cyber animate-gradient text-transparent bg-clip-text">Create Cover Letter</h1>
+          <h1 className="text-6xl font-bold hero-gradient-cyber animate-gradient text-transparent bg-clip-text leading-[1.25] mb-4 overflow-visible">Create Cover Letter</h1>
           <p className="text-muted-foreground">
             Generate a tailored cover letter for your job application
           </p>
