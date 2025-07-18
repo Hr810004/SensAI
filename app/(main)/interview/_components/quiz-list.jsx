@@ -30,7 +30,7 @@ export default function QuizList({ assessments }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="gradient-title text-3xl md:text-4xl">
+              <CardTitle className="hero-gradient-cyber animate-gradient text-transparent bg-clip-text text-3xl md:text-4xl">
                 Recent Quizzes
               </CardTitle>
               <CardDescription>

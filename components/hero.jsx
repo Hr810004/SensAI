@@ -31,10 +31,10 @@ const HeroSection = () => {
   }, []);
 
   return (
-    <section className="w-full pt-36 md:pt-48 pb-10">
+    <section className="w-full pt-36 md:pt-48 pb-6 mb-10">
       <div className="space-y-6 text-center">
         <div className="space-y-6 mx-auto">
-          <h1 className="text-5xl font-bold md:text-6xl lg:text-7xl xl:text-8xl hero-gradient-cyber animate-gradient">
+          <h1 className="text-5xl font-bold md:text-6xl lg:text-7xl xl:text-7xl leading-[1.1] hero-gradient-cyber animate-gradient">
             Supercharge Your Career
             <br />
             with AI-Powered Intelligence
@@ -64,10 +64,10 @@ const HeroSection = () => {
           <div ref={imageRef} className="hero-image">
             <Image
               src="/banner.jpeg"
-              width={1280}
-              height={720}
+              width={1100}
+              height={600}
               alt="Dashboard Preview"
-              className="rounded-lg shadow-2xl border mx-auto"
+              className="rounded-lg shadow-2xl border mx-auto max-w-[90vw]"
               priority
             />
           </div>
@@ -107,6 +107,15 @@ const ContactFormModal = ({ onClose }) => {
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [animateOut, setAnimateOut] = useState(false);
+
+  const handleClose = () => {
+    setAnimateOut(true);
+    setTimeout(() => {
+      setAnimateOut(false);
+      onClose();
+    }, 350);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,7 +135,7 @@ const ContactFormModal = ({ onClose }) => {
       if (response.ok) {
         toast.success('Message sent successfully! We\'ll get back to you soon.');
         setFormData({ name: '', email: '', subject: '', inquiryType: '', industry: '', contactMethod: '', message: '' });
-        onClose();
+        handleClose();
       } else {
         toast.error(result.error || 'Failed to send message. Please try again.');
       }
@@ -140,7 +149,11 @@ const ContactFormModal = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-card border border-border rounded-xl p-8 w-full max-w-lg shadow-2xl">
+      <div
+        className={`bg-card border border-border rounded-xl p-8 w-full max-w-lg shadow-2xl transition-transform transition-opacity duration-350 ease-in-out
+        ${animateOut ? 'opacity-0 -translate-y-10 scale-95' : 'opacity-100 translate-y-0 scale-100'}`}
+        style={{ willChange: 'transform, opacity', maxHeight: '90vh', overflowY: 'auto' }}
+      >
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Get in Touch</h2>
@@ -149,7 +162,7 @@ const ContactFormModal = ({ onClose }) => {
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-accent transition-colors"
           >
             <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
@@ -274,7 +287,7 @@ const ContactFormModal = ({ onClose }) => {
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1"
             >
               Cancel
