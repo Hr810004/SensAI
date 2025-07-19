@@ -52,6 +52,8 @@ export default function Quiz() {
   const animationFrameRef = useRef(null);
   const [timer, setTimer] = useState(0);
   const timerIntervalRef = useRef(null);
+  const [lastFaceDetectionState, setLastFaceDetectionState] = useState(true);
+  const [lastTabSwitchesCount, setLastTabSwitchesCount] = useState(0);
 
   const { loading: generatingQuiz, fn: generateQuizFn, data: quizData } = useFetch(generateQuiz);
   const { loading: savingResult, fn: saveQuizResultFn, data: resultData, setData: setResultData } = useFetch(saveQuizResult);
@@ -278,7 +280,6 @@ export default function Quiz() {
       if (document.hidden) {
         setIsTabActive(false);
         setTabSwitches(prev => prev + 1);
-        toast.warning("Tab switching detected! Please stay on this page.");
       } else {
         setIsTabActive(true);
       }
@@ -288,6 +289,53 @@ export default function Quiz() {
       document.removeEventListener('visibilitychange', handleTabSwitch);
     };
   }, []);
+
+  // --- [3.1] Toast notifications for tab switching ---
+  useEffect(() => {
+    if (tabSwitches > lastTabSwitchesCount && !quizFinished) {
+      toast.warning(`⚠️ Tab switched ${tabSwitches} time${tabSwitches > 1 ? 's' : ''}. Please stay on this page.`, {
+        duration: 4000,
+        action: {
+          label: 'OK',
+          onClick: () => {}
+        }
+      });
+      setLastTabSwitchesCount(tabSwitches);
+    }
+  }, [tabSwitches, lastTabSwitchesCount, quizFinished]);
+
+  // --- [3.2] Toast notifications for face detection ---
+  useEffect(() => {
+    if (!quizFinished && faceDetected !== lastFaceDetectionState) {
+      if (!faceDetected) {
+        toast.error("🚫 No face detected! Please ensure you are present for the quiz.", {
+          duration: 5000,
+          action: {
+            label: 'OK',
+            onClick: () => {}
+          }
+        });
+      } else {
+        toast.success("✅ Face detected. You can continue with the quiz.", {
+          duration: 3000
+        });
+      }
+      setLastFaceDetectionState(faceDetected);
+    }
+  }, [faceDetected, lastFaceDetectionState, quizFinished]);
+
+  // --- [3.3] Periodic face detection status reminder ---
+  useEffect(() => {
+    if (!quizFinished && faceDetected) {
+      const reminderInterval = setInterval(() => {
+        toast.info("👁️ Face detection is active. Please stay visible.", {
+          duration: 2000
+        });
+      }, 30000); // Show reminder every 30 seconds
+
+      return () => clearInterval(reminderInterval);
+    }
+  }, [quizFinished, faceDetected]);
 
   // --- [4] Quiz generation with proper error handling ---
   const handleStartQuiz = async (selectedCompany, selectedRole) => {
@@ -320,6 +368,17 @@ export default function Quiz() {
       alert("Failed to generate quiz questions: " + e.message);
     } finally {
       setLoadingQuestions(false);
+      
+      // Show quiz start notification
+      if (quizSections) {
+        toast.success("🎯 Quiz started! Face detection and tab monitoring are active.", {
+          duration: 4000,
+          action: {
+            label: 'Got it',
+            onClick: () => {}
+          }
+        });
+      }
     }
   };
 
@@ -526,6 +585,17 @@ export default function Quiz() {
     
     setQuizResult(result);
     
+    // Show monitoring summary
+    if (tabSwitches > 0) {
+      toast.warning(`📊 Quiz completed! Tab switches detected: ${tabSwitches}`, {
+        duration: 5000
+      });
+    } else {
+      toast.success("🎉 Quiz completed successfully! No tab switches detected.", {
+        duration: 4000
+      });
+    }
+    
     // Save the quiz result
     try {
       await saveQuizResultFn(questionsReview, questionsReview.map(q => q.userAnswer), finalScore);
@@ -639,19 +709,6 @@ export default function Quiz() {
                 </div>
               )}
               
-              {/* Face detection warning */}
-              {!faceDetected && (
-                <div className="bg-red-100 text-red-700 p-2 rounded mb-2 font-semibold text-center">
-                  No face detected! Please ensure you are present for the quiz.
-                </div>
-              )}
-              
-              {/* Tab switching warning */}
-              {tabSwitches > 0 && (
-                <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-2 font-semibold text-center">
-                  ⚠️ Tab switched {tabSwitches} time{tabSwitches > 1 ? 's' : ''}. Please stay on this page.
-                </div>
-              )}
               
               <h2 className="text-3xl font-bold mb-6 text-foreground bg-muted/30 p-4 rounded-lg text-center">
                 Quiz for {company} - {role}
