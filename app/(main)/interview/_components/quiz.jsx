@@ -71,6 +71,73 @@ export default function Quiz() {
   // Get input type for current question
   const inputType = getInputType(currentSection, currentSubsection);
 
+  // Helper function to get total questions in current subsection
+  const getCurrentSubsectionQuestionsCount = () => {
+    if (!quizSections || !currentSection || !currentSubsection) return 0;
+    return quizSections[currentSection][currentSubsection]?.length || 0;
+  };
+
+  // Helper function to navigate to next subsection
+  const navigateToNextSubsection = () => {
+    if (!quizSections || !currentSection) return;
+    
+    const currentSubsections = Object.keys(quizSections[currentSection]);
+    const currentSubIndex = currentSubsections.indexOf(currentSubsection);
+    
+    if (currentSubIndex < currentSubsections.length - 1) {
+      // Move to next subsection in same section
+      const nextSubsection = currentSubsections[currentSubIndex + 1];
+      setCurrentSubsection(nextSubsection);
+      setCurrentQuestionIdx(0);
+      toast.success(`Moving to ${nextSubsection} subsection`);
+    } else {
+      // Move to next section
+      const sectionNames = Object.keys(quizSections);
+      const currentSectionIndex = sectionNames.indexOf(currentSection);
+      
+      if (currentSectionIndex < sectionNames.length - 1) {
+        const nextSection = sectionNames[currentSectionIndex + 1];
+        const firstSubsection = Object.keys(quizSections[nextSection])[0];
+        setCurrentSection(nextSection);
+        setCurrentSubsection(firstSubsection);
+        setCurrentQuestionIdx(0);
+        toast.success(`Moving to ${nextSection} > ${firstSubsection}`);
+      }
+    }
+  };
+
+  // Helper function to navigate to previous subsection
+  const navigateToPreviousSubsection = () => {
+    if (!quizSections || !currentSection) return;
+    
+    const currentSubsections = Object.keys(quizSections[currentSection]);
+    const currentSubIndex = currentSubsections.indexOf(currentSubsection);
+    
+    if (currentSubIndex > 0) {
+      // Move to previous subsection in same section
+      const prevSubsection = currentSubsections[currentSubIndex - 1];
+      const prevSubsectionQuestions = quizSections[currentSection][prevSubsection]?.length || 0;
+      setCurrentSubsection(prevSubsection);
+      setCurrentQuestionIdx(prevSubsectionQuestions - 1);
+      toast.success(`Moving to ${prevSubsection} subsection`);
+    } else {
+      // Move to previous section
+      const sectionNames = Object.keys(quizSections);
+      const currentSectionIndex = sectionNames.indexOf(currentSection);
+      
+      if (currentSectionIndex > 0) {
+        const prevSection = sectionNames[currentSectionIndex - 1];
+        const prevSectionSubsections = Object.keys(quizSections[prevSection]);
+        const lastSubsection = prevSectionSubsections[prevSectionSubsections.length - 1];
+        const lastSubsectionQuestions = quizSections[prevSection][lastSubsection]?.length || 0;
+        setCurrentSection(prevSection);
+        setCurrentSubsection(lastSubsection);
+        setCurrentQuestionIdx(lastSubsectionQuestions - 1);
+        toast.success(`Moving to ${prevSection} > ${lastSubsection}`);
+      }
+    }
+  };
+
   useEffect(() => {
     if (quizData) {
       setMcqAnswers({});
@@ -590,6 +657,16 @@ export default function Quiz() {
                 Quiz for {company} - {role}
               </h2>
               
+              {/* Current Section and Subsection Indicator */}
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="text-center">
+                  <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Current Section</div>
+                  <div className="text-lg font-bold text-blue-800 dark:text-blue-200">{currentSection}</div>
+                  <div className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">Current Subsection</div>
+                  <div className="text-md font-semibold text-blue-800 dark:text-blue-200">{currentSubsection}</div>
+                </div>
+              </div>
+              
               {/* Section Navigation */}
               <div className="flex gap-4 mb-4 overflow-x-auto">
                 {sectionNames.map((section) => (
@@ -635,19 +712,26 @@ export default function Quiz() {
               {/* Question Card */}
               <Card className="mb-4">
                 <div className="font-semibold mb-3 text-foreground text-lg bg-muted/50 p-3 rounded-lg">
-                  Question {currentQuestionIdx + 1} of {totalQuestions}
+                  Question {currentQuestionIdx + 1} of {getCurrentSubsectionQuestionsCount()} - {currentSubsection}
                 </div>
                 
                 {/* Progress Indicator */}
                 <div className="mb-4 p-3 bg-muted/30 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-foreground">Progress</span>
+                    <span className="text-sm font-medium text-foreground">Progress in {currentSubsection}</span>
                     <span className="text-sm text-muted-foreground">
                       {(() => {
-                        const answeredCount = Object.keys(mcqAnswers).length + 
-                                            Object.keys(textAnswers).length + 
-                                            Object.keys(audioAnswers).length;
-                        return `${answeredCount} answered`;
+                        const currentSubsectionQuestions = getCurrentSubsectionQuestionsCount();
+                        const answeredInCurrentSubsection = (() => {
+                          if (currentSection === "Aptitude" || currentSection === "CS Fundamentals") {
+                            return mcqAnswers[currentSection]?.[currentSubsection] ? 
+                              Object.keys(mcqAnswers[currentSection][currentSubsection]).length : 0;
+                          } else {
+                            return audioAnswers[currentSection]?.[currentSubsection] ? 
+                              Object.keys(audioAnswers[currentSection][currentSubsection]).length : 0;
+                          }
+                        })();
+                        return `${answeredInCurrentSubsection}/${currentSubsectionQuestions} answered`;
                       })()}
                     </span>
                   </div>
@@ -656,10 +740,18 @@ export default function Quiz() {
                       className="bg-primary h-2 rounded-full transition-all duration-300"
                       style={{ 
                         width: `${(() => {
-                          const answeredCount = Object.keys(mcqAnswers).length + 
-                                              Object.keys(textAnswers).length + 
-                                              Object.keys(audioAnswers).length;
-                          return Math.max(0, (answeredCount / totalQuestions) * 100);
+                          const currentSubsectionQuestions = getCurrentSubsectionQuestionsCount();
+                          const answeredInCurrentSubsection = (() => {
+                            if (currentSection === "Aptitude" || currentSection === "CS Fundamentals") {
+                              return mcqAnswers[currentSection]?.[currentSubsection] ? 
+                                Object.keys(mcqAnswers[currentSection][currentSubsection]).length : 0;
+                            } else {
+                              return audioAnswers[currentSection]?.[currentSubsection] ? 
+                                Object.keys(audioAnswers[currentSection][currentSubsection]).length : 0;
+                            }
+                          })();
+                          return currentSubsectionQuestions > 0 ? 
+                            Math.max(0, (answeredInCurrentSubsection / currentSubsectionQuestions) * 100) : 0;
                         })()}%` 
                       }}
                     />
@@ -739,16 +831,45 @@ export default function Quiz() {
               {/* Navigation Buttons */}
               <div className="flex justify-between mb-4">
                 <Button
-                  onClick={() => setCurrentQuestionIdx((i) => Math.max(0, i - 1))}
-                  disabled={currentQuestionIdx === 0}
+                  onClick={() => {
+                    if (currentQuestionIdx > 0) {
+                      setCurrentQuestionIdx((i) => i - 1);
+                    } else {
+                      navigateToPreviousSubsection();
+                    }
+                  }}
+                  disabled={currentQuestionIdx === 0 && 
+                    (() => {
+                      const currentSubsections = Object.keys(quizSections[currentSection] || {});
+                      const currentSubIndex = currentSubsections.indexOf(currentSubsection);
+                      const sectionNames = Object.keys(quizSections || {});
+                      const currentSectionIndex = sectionNames.indexOf(currentSection);
+                      return currentSubIndex === 0 && currentSectionIndex === 0;
+                    })()}
                   variant="secondary"
                   className="px-6 py-2 font-semibold"
                 >
                   Previous
                 </Button>
                 <Button
-                  onClick={() => setCurrentQuestionIdx((i) => Math.min(totalQuestions - 1, i + 1))}
-                  disabled={currentQuestionIdx === totalQuestions - 1}
+                  onClick={() => {
+                    const currentSubsectionQuestions = getCurrentSubsectionQuestionsCount();
+                    if (currentQuestionIdx < currentSubsectionQuestions - 1) {
+                      setCurrentQuestionIdx((i) => i + 1);
+                    } else {
+                      navigateToNextSubsection();
+                    }
+                  }}
+                  disabled={(() => {
+                    const currentSubsectionQuestions = getCurrentSubsectionQuestionsCount();
+                    const currentSubsections = Object.keys(quizSections[currentSection] || {});
+                    const currentSubIndex = currentSubsections.indexOf(currentSubsection);
+                    const sectionNames = Object.keys(quizSections || {});
+                    const currentSectionIndex = sectionNames.indexOf(currentSection);
+                    return currentQuestionIdx === currentSubsectionQuestions - 1 && 
+                           currentSubIndex === currentSubsections.length - 1 && 
+                           currentSectionIndex === sectionNames.length - 1;
+                  })()}
                   className="px-6 py-2 font-semibold"
                 >
                   Next
