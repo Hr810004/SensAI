@@ -4,6 +4,7 @@ import { Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import ReactMarkdown from 'react-markdown';
 
 export default function QuizResult({ result, videoUrl, onStartNew, hideStartNew }) {
   if (!result) return null;
@@ -48,7 +49,11 @@ export default function QuizResult({ result, videoUrl, onStartNew, hideStartNew 
           {result.questions?.map((q, index) => (
             <div key={index} className="border rounded-lg p-4 space-y-2">
               <div className="font-medium">{q.section} / {q.subsection}</div>
-              <div className="font-medium">{q.question}</div>
+              <div className="font-medium">
+                <ReactMarkdown className="prose prose-invert max-w-none markdown-content">
+                  {q.question}
+                </ReactMarkdown>
+              </div>
               <div className="text-sm text-muted-foreground">
                 <p>Your answer: {q.userAnswer}</p>
                 {q.correctAnswer && <p>Correct answer: {q.correctAnswer}</p>}
@@ -56,7 +61,9 @@ export default function QuizResult({ result, videoUrl, onStartNew, hideStartNew 
               {q.explanation && (
                 <div className="text-sm bg-muted p-2 rounded">
                   <p className="font-medium">Explanation:</p>
-                  <p>{q.explanation}</p>
+                  <ReactMarkdown className="prose prose-invert max-w-none markdown-content text-sm">
+                    {q.explanation}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>

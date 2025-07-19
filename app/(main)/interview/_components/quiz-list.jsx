@@ -19,6 +19,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import QuizResult from "./quiz-result";
+import ReactMarkdown from 'react-markdown';
 
 export default function QuizList({ assessments }) {
   const router = useRouter();
@@ -67,9 +68,9 @@ export default function QuizList({ assessments }) {
                   </CardHeader>
                   {assessment.improvementTip && (
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">
+                      <ReactMarkdown className="prose prose-invert max-w-none markdown-content text-sm text-muted-foreground">
                         {assessment.improvementTip}
-                      </p>
+                      </ReactMarkdown>
                     </CardContent>
                   )}
                 </Card>

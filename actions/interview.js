@@ -39,21 +39,35 @@ Generate a JSON mock interview quiz for a candidate applying for '${role || indu
   },
   "CS Fundamentals": {
     "DSA": [2 questions: 1 LeetCode-style (questionType: 'leetcode-algorithm'), 1 code snippet (questionType: 'code-correction', 'code-completion', or 'missing-line')],
-    "Operating Systems": [1-2 open-ended],
-    "Databases": [1-2 open-ended],
-    "Networking": [1-2 open-ended],
-    "OOP/Software Engineering": [1-2 open-ended]
+    "Operating Systems": [2 open-ended],
+    "Databases": [2 open-ended],
+    "Networking": [2 open-ended],
+    "OOP/Software Engineering": [2 open-ended]
   },
   "Behavioral & Communication": {
-    "Behavioral": [1-2 open-ended],
-    "Situational": [1-2 open-ended],
-    "Communication/Presentation": [1-2 open-ended]
+    "Behavioral": [2 open-ended],
+    "Situational": [2 open-ended],
+    "Communication/Presentation": [2 open-ended]
   }
 }
+
+IMPORTANT GUIDELINES:
 - MCQs: 4 options, correct answer, explanation.
 - DSA: 1 LeetCode-style, 1 code snippet-based.
 - Open-ended: question, explanation.
+- For ALL questions, use proper markdown formatting:
+  - **Bold text** for emphasis
+  - *Italic text* for important terms
+  - \`code snippets\` for inline code
+  - \`\`\`javascript\n// code blocks\n\`\`\` for multi-line code
+  - | Column1 | Column2 | Column3 | for tables
+  - |---------|---------|---------|
+  - | Data1   | Data2   | Data3   |
+  - Lists: - item1\n- item2
+  - Numbered lists: 1. item1\n2. item2
+- Keep questions concise and focused.
 - Return ONLY the JSON, no extra text or markdown.
+- Total questions should be around 30-35.
 `;
   const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {

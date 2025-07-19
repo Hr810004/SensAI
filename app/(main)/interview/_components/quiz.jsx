@@ -14,6 +14,7 @@ import PreQuizModal from "./pre-quiz-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import * as faceapi from 'face-api.js';
 import { Card } from "@/components/ui/card";
+import ReactMarkdown from 'react-markdown';
 
 let faceapiLoaded = false;
 
@@ -148,11 +149,13 @@ export default function Quiz() {
     };
   }, [mediaStream]);
 
-  // --- [2] Robust face detection ---
+  // --- [2] Improved face detection ---
   useEffect(() => {
     if (!mediaStream || quizFinished) return;
+    
     let interval;
     let localNoFaceTimer = null;
+    
     async function loadAndDetect() {
       if (!faceapiLoaded) {
         try {
@@ -163,24 +166,29 @@ export default function Quiz() {
           return;
         }
       }
+      
       if (videoRef.current && faceapiLoaded) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play();
+        
         interval = setInterval(async () => {
           try {
-            const detections = await faceapi.detectAllFaces(
-              videoRef.current,
-              new faceapi.TinyFaceDetectorOptions()
-            );
-            if (detections.length > 0) {
-              setFaceDetected(true);
-              if (localNoFaceTimer) {
-                clearTimeout(localNoFaceTimer);
-                localNoFaceTimer = null;
-              }
-            } else {
-              if (!localNoFaceTimer) {
-                localNoFaceTimer = setTimeout(() => setFaceDetected(false), 5000);
+            if (videoRef.current && videoRef.current.videoWidth > 0) {
+              const detections = await faceapi.detectAllFaces(
+                videoRef.current,
+                new faceapi.TinyFaceDetectorOptions()
+              );
+              
+              if (detections.length > 0) {
+                setFaceDetected(true);
+                if (localNoFaceTimer) {
+                  clearTimeout(localNoFaceTimer);
+                  localNoFaceTimer = null;
+                }
+              } else {
+                if (!localNoFaceTimer) {
+                  localNoFaceTimer = setTimeout(() => setFaceDetected(false), 3000);
+                }
               }
             }
           } catch (err) {
@@ -189,6 +197,7 @@ export default function Quiz() {
         }, 1000);
       }
     }
+    
     loadAndDetect();
     return () => {
       if (interval) clearInterval(interval);
@@ -196,7 +205,7 @@ export default function Quiz() {
     };
   }, [mediaStream, quizFinished]);
 
-  // --- [3] Tab switching and proctoring (already robust, but add more feedback if needed) ---
+  // --- [3] Tab switching and proctoring ---
   useEffect(() => {
     const handleTabSwitch = () => {
       if (document.hidden) {
@@ -213,7 +222,7 @@ export default function Quiz() {
     };
   }, []);
 
-  // --- [4] Add error handling for quiz generation ---
+  // --- [4] Quiz generation with proper error handling ---
   const handleStartQuiz = async (selectedCompany, selectedRole) => {
     if (!selectedCompany.trim() || !selectedRole.trim()) {
       alert("Please enter both company and role.");
@@ -247,7 +256,7 @@ export default function Quiz() {
     }
   };
 
-  // Start timer when quizSections are set (questions rendered)
+  // Start timer when quizSections are set
   useEffect(() => {
     if (quizSections && !quizFinished) {
       setTimer(0);
@@ -272,7 +281,7 @@ export default function Quiz() {
     return `${m}:${s}`;
   };
 
-  // --- [5] Missing Functions ---
+  // --- [5] Input type determination ---
   function getInputType(section, subsection) {
     if (section === "Aptitude") return "mcq";
     if (section === "CS Fundamentals" && subsection === "DSA") return "text-audio";
@@ -281,14 +290,16 @@ export default function Quiz() {
     return "mcq";
   }
 
+  // --- [6] Fixed MCQ handling ---
   const handleMcqChange = (val) => {
     setMcqAnswers((prev) => ({
       ...prev,
       [currentSection]: {
         ...(prev[currentSection] || {}),
-        [currentSubsection]: [
-          ...(prev[currentSection]?.[currentSubsection] || []),
-        ].map((a, i) => (i === currentQuestionIdx ? val : a)),
+        [currentSubsection]: {
+          ...(prev[currentSection]?.[currentSubsection] || {}),
+          [currentQuestionIdx]: val
+        }
       },
     }));
   };
@@ -298,9 +309,10 @@ export default function Quiz() {
       ...prev,
       [currentSection]: {
         ...(prev[currentSection] || {}),
-        [currentSubsection]: [
-          ...(prev[currentSection]?.[currentSubsection] || []),
-        ].map((a, i) => (i === currentQuestionIdx ? e.target.value : a)),
+        [currentSubsection]: {
+          ...(prev[currentSection]?.[currentSubsection] || {}),
+          [currentQuestionIdx]: e.target.value
+        }
       },
     }));
   };
@@ -323,9 +335,10 @@ export default function Quiz() {
             ...prev,
             [currentSection]: {
               ...(prev[currentSection] || {}),
-              [currentSubsection]: [
-                ...(prev[currentSection]?.[currentSubsection] || []),
-              ].map((a, i) => (i === currentQuestionIdx ? transcript : a)),
+              [currentSubsection]: {
+                ...(prev[currentSection]?.[currentSubsection] || {}),
+                [currentQuestionIdx]: transcript
+              }
             },
           }));
         } else if (inputType === "audio") {
@@ -333,9 +346,10 @@ export default function Quiz() {
             ...prev,
             [currentSection]: {
               ...(prev[currentSection] || {}),
-              [currentSubsection]: [
-                ...(prev[currentSection]?.[currentSubsection] || []),
-              ].map((a, i) => (i === currentQuestionIdx ? transcript : a)),
+              [currentSubsection]: {
+                ...(prev[currentSection]?.[currentSubsection] || {}),
+                [currentQuestionIdx]: transcript
+              }
             },
           }));
         }
@@ -368,15 +382,33 @@ export default function Quiz() {
     }
   };
 
-  const handleFinishQuiz = () => {
+  // --- [7] Fixed quiz completion with proper saving ---
+  const handleFinishQuiz = async () => {
+    // Check if user has answered any questions
+    const hasAnsweredQuestions = Object.keys(mcqAnswers).length > 0 || 
+                                Object.keys(textAnswers).length > 0 || 
+                                Object.keys(audioAnswers).length > 0;
+    
+    if (!hasAnsweredQuestions) {
+      const confirmed = window.confirm(
+        "You haven't answered any questions yet. Are you sure you want to finish the quiz?\n\n" +
+        "Your score will be 0% and no answers will be saved."
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    
     setQuizFinished(true);
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
     }
+    
     const sectionScores = {};
     let totalScore = 0;
     let totalQuestions = 0;
     const questionsReview = [];
+    
     Object.entries(quizSections).forEach(([section, subs]) => {
       let sectionCorrect = 0;
       let sectionTotal = 0;
@@ -412,14 +444,17 @@ export default function Quiz() {
         totalQuestions += sectionTotal;
       }
     });
+    
     const improvementTips = {
       Aptitude: "Review your mistakes and practice more company-specific aptitude questions.",
       "CS Fundamentals": "Focus on explaining your thought process clearly in technical questions.",
       "Behavioral & Communication": "Practice speaking confidently and concisely about your experiences.",
     };
+    
     const finalScore = totalQuestions ? (totalScore / totalQuestions) * 100 : 0;
-    setQuizResult({
-      quizScore: finalScore, // Use only quizScore for consistency across all components
+    
+    const result = {
+      quizScore: finalScore,
       sectionScores,
       improvementTips,
       questions: questionsReview,
@@ -427,7 +462,18 @@ export default function Quiz() {
         tabSwitches,
         isTabActive
       }
-    });
+    };
+    
+    setQuizResult(result);
+    
+    // Save the quiz result
+    try {
+      await saveQuizResultFn(questionsReview, questionsReview.map(q => q.userAnswer), finalScore);
+      toast.success("Quiz result saved successfully!");
+    } catch (error) {
+      console.error("Failed to save quiz result:", error);
+      toast.error("Failed to save quiz result");
+    }
   };
 
   if (preQuizOpen) {
@@ -459,231 +505,260 @@ export default function Quiz() {
         />
       ) : (
         <>
-          {/* Video/audio preview visible during quiz loading and quiz, but not before or after */}
-          {!quizFinished && !preQuizOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{ width: 320, height: 240, background: "#000", borderRadius: 8 }}
-              />
-              <div style={{ height: 10, width: 320, background: "#222", marginTop: 8, borderRadius: 4 }}>
-                <div style={{ height: "100%", width: `${audioLevel}%`, background: "#0af", borderRadius: 4 }} />
-              </div>
-            </div>
-          )}
-          {/* Existing loading spinner and quiz content below */}
+          {/* Loading state */}
           {loadingQuestions || !quizSections ? (
             <div className="flex flex-col items-center mt-8">
               <span className="mb-2 text-muted-foreground text-sm">Quiz generation may take 10–20 seconds. Please wait...</span>
               <BarLoader width={200} color="gray" />
             </div>
           ) : (
-        // ...rest of your quiz UI...
-        <div className="mx-2 relative">
-          {/* Timer on top right */}
-          {quizSections && !quizFinished && (
-            <div className="absolute top-2 right-4 z-20 bg-muted px-4 py-2 rounded shadow text-lg font-mono">
-              ⏱️ {formatTime(timer)}
-            </div>
-          )}
-          {/* Show video/audio check while quiz is loading */}
-          {loadingQuestions && mediaStream && (
-            <div className="flex flex-col items-center justify-center min-h-[300px]">
-              {/* Audio Level Bar */}
-              <div className="mb-2 w-full max-w-xs">
-                <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
-                <div className="w-full h-2 bg-muted rounded">
-                  <div
-                    className="h-2 bg-green-500 rounded transition-all"
-                    style={{ width: `${audioLevel}%` }}
+            <div className="mx-2 relative">
+              {/* Single Video Preview with Audio Bar and Timer */}
+              {mediaStream && !quizFinished && !loadingQuestions && (
+                <div className="flex flex-col items-center mb-6">
+                  <video
+                    ref={videoRef}
+                    width={320}
+                    height={240}
+                    className="rounded border-2 border-primary bg-black shadow-lg mb-4"
+                    style={{ display: "block" }}
+                    muted
+                    autoPlay
+                    playsInline
                   />
-                </div>
-              </div>
-              {/* Video Preview */}
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-48 h-36 rounded shadow border"
-                style={{ objectFit: "cover" }}
-              />
-              <div className="mt-4">
-                <BarLoader color="#4ade80" width={200} />
-                <div className="text-sm text-muted-foreground mt-2">
-                  Preparing your quiz...
-                </div>
-              </div>
-            </div>
-          )}
-          {/* Audio Level Bar and Timer on the same line */}
-          {mediaStream && !quizFinished && !loadingQuestions && (
-            <div className="mb-2 flex items-center justify-between w-full max-w-lg">
-              <div className="flex-1 mr-4">
-                <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
-                <div className="w-full h-2 bg-muted rounded">
-                  <div
-                    className="h-2 bg-green-500 rounded transition-all"
-                    style={{ width: `${audioLevel}%` }}
-                  />
-                </div>
-              </div>
-              {quizSections && !quizFinished && (
-                <div className="text-lg font-mono bg-muted px-4 py-2 rounded shadow whitespace-nowrap">
-                  ⏱️ {formatTime(timer)}
-                </div>
-              )}
-            </div>
-          )}
-          {/* Video Preview - always visible when mediaStream is available and quiz is not finished */}
-          {mediaStream && !quizFinished && !loadingQuestions && (
-            <div className="flex justify-center mb-4">
-              <video
-                ref={videoRef}
-                width={180}
-                height={135}
-                className="rounded border-2 border-primary bg-black shadow-lg"
-                style={{ display: "block" }}
-                muted
-                autoPlay
-              />
-            </div>
-          )}
-          {/* Fallback if webcam is not accessible */}
-          {!mediaStream && !quizFinished && !loadingQuestions && (
-            <div className="mb-4 text-center text-red-600 font-semibold">
-              Webcam not accessible. Please enable your webcam for video preview and face detection.
-            </div>
-          )}
-          {!faceDetected && (
-            <div className="bg-red-100 text-red-700 p-2 rounded mb-2 font-semibold text-center">
-              No face detected! Please ensure you are present for the quiz.
-            </div>
-          )}
-          
-          {tabSwitches > 0 && (
-            <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-2 font-semibold text-center">
-              ⚠️ Tab switched {tabSwitches} time{tabSwitches > 1 ? 's' : ''}. Please stay on this page.
-            </div>
-          )}
-          <h2 className="text-2xl font-bold mb-4">Quiz for {company} - {role}</h2>
-          <div className="flex gap-4 mb-4">
-            {sectionNames.map((section) => (
-              <button
-                key={section}
-                className={`px-3 py-1 rounded font-semibold ${section === currentSection ? "bg-primary text-white" : "bg-muted"}`}
-                onClick={() => {
-                  setCurrentSection(section);
-                  const firstSub = quizSections[section] ? Object.keys(quizSections[section])[0] : null;
-                  setCurrentSubsection(firstSub);
-                  setCurrentQuestionIdx(0);
-                }}
-              >
-                {section}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mb-4">
-            {subsectionNames.map((sub) => (
-              <button
-                key={sub}
-                className={`px-2 py-1 rounded text-sm ${sub === currentSubsection ? "bg-primary text-white" : "bg-muted"}`}
-                onClick={() => {
-                  setCurrentSubsection(sub);
-                  setCurrentQuestionIdx(0);
-                }}
-              >
-                {sub}
-              </button>
-            ))}
-          </div>
-          <Card className="mb-4">
-            <div className="font-medium mb-2">
-              Question {currentQuestionIdx + 1} of {totalQuestions}
-            </div>
-            <div className="mb-2">
-              {currentQuestion?.question || "No questions found."}
-              {/* Render code snippet for DSA questions if present */}
-              {currentSection === "CS Fundamentals" && currentSubsection === "DSA" && currentQuestion?.code && (
-                <pre className="bg-muted rounded p-3 mt-3 overflow-x-auto text-sm"><code>{currentQuestion.code}</code></pre>
-              )}
-            </div>
-            {inputType === "mcq" && (
-              <RadioGroup
-                value={mcqAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
-                onValueChange={handleMcqChange}
-                className="space-y-2"
-              >
-                {currentQuestion.options?.map((option, idx) => (
-                  <div key={idx} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option} id={`option-${idx}`} />
-                    <Label htmlFor={`option-${idx}`}>{option}</Label>
+                  {/* Combined Audio Bar and Timer */}
+                  <div className="flex items-center justify-between w-full max-w-lg">
+                    <div className="flex-1 mr-4">
+                      <div className="text-xs text-muted-foreground mb-1">Audio Level</div>
+                      <div className="w-full h-2 bg-muted rounded">
+                        <div
+                          className="h-2 bg-green-500 rounded transition-all"
+                          style={{ width: `${audioLevel}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-lg font-mono bg-muted px-4 py-2 rounded shadow whitespace-nowrap">
+                      ⏱️ {formatTime(timer)}
+                    </div>
                   </div>
+                </div>
+              )}
+              
+              {/* Fallback if webcam is not accessible */}
+              {!mediaStream && !quizFinished && !loadingQuestions && (
+                <div className="mb-4 text-center text-red-600 font-semibold">
+                  Webcam not accessible. Please enable your webcam for video preview and face detection.
+                </div>
+              )}
+              
+              {/* Face detection warning */}
+              {!faceDetected && (
+                <div className="bg-red-100 text-red-700 p-2 rounded mb-2 font-semibold text-center">
+                  No face detected! Please ensure you are present for the quiz.
+                </div>
+              )}
+              
+              {/* Tab switching warning */}
+              {tabSwitches > 0 && (
+                <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-2 font-semibold text-center">
+                  ⚠️ Tab switched {tabSwitches} time{tabSwitches > 1 ? 's' : ''}. Please stay on this page.
+                </div>
+              )}
+              
+              <h2 className="text-3xl font-bold mb-6 text-foreground bg-muted/30 p-4 rounded-lg text-center">
+                Quiz for {company} - {role}
+              </h2>
+              
+              {/* Section Navigation */}
+              <div className="flex gap-4 mb-4 overflow-x-auto">
+                {sectionNames.map((section) => (
+                  <button
+                    key={section}
+                    className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                      section === currentSection 
+                        ? "bg-primary text-white shadow-lg" 
+                        : "bg-muted text-foreground hover:bg-muted/80 border border-border"
+                    }`}
+                    onClick={() => {
+                      setCurrentSection(section);
+                      const firstSub = quizSections[section] ? Object.keys(quizSections[section])[0] : null;
+                      setCurrentSubsection(firstSub);
+                      setCurrentQuestionIdx(0);
+                    }}
+                  >
+                    {section}
+                  </button>
                 ))}
-              </RadioGroup>
-            )}
-            {inputType === "text-audio" && (
-              <div className="space-y-2">
-                <Label htmlFor="text-answer">Your Answer (Text or Audio)</Label>
-                <Input
-                  id="text-answer"
-                  value={textAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
-                  onChange={handleTextChange}
-                  placeholder="Type your answer or use the mic"
-                />
+              </div>
+              
+              {/* Subsection Navigation */}
+              <div className="flex gap-2 mb-4 overflow-x-auto">
+                {subsectionNames.map((sub) => (
+                  <button
+                    key={sub}
+                    className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${
+                      sub === currentSubsection 
+                        ? "bg-primary text-white shadow-md" 
+                        : "bg-muted text-foreground hover:bg-muted/80 border border-border"
+                    }`}
+                    onClick={() => {
+                      setCurrentSubsection(sub);
+                      setCurrentQuestionIdx(0);
+                    }}
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Question Card */}
+              <Card className="mb-4">
+                <div className="font-semibold mb-3 text-foreground text-lg bg-muted/50 p-3 rounded-lg">
+                  Question {currentQuestionIdx + 1} of {totalQuestions}
+                </div>
+                
+                {/* Progress Indicator */}
+                <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-foreground">Progress</span>
+                    <span className="text-sm text-muted-foreground">
+                      {(() => {
+                        const answeredCount = Object.keys(mcqAnswers).length + 
+                                            Object.keys(textAnswers).length + 
+                                            Object.keys(audioAnswers).length;
+                        return `${answeredCount} answered`;
+                      })()}
+                    </span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${(() => {
+                          const answeredCount = Object.keys(mcqAnswers).length + 
+                                              Object.keys(textAnswers).length + 
+                                              Object.keys(audioAnswers).length;
+                          return Math.max(0, (answeredCount / totalQuestions) * 100);
+                        })()}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="mb-2 text-foreground">
+                  <ReactMarkdown className="prose prose-invert max-w-none markdown-content">
+                    {currentQuestion?.question || "No questions found."}
+                  </ReactMarkdown>
+                  {/* Render code snippet for DSA questions if present */}
+                  {currentSection === "CS Fundamentals" && currentSubsection === "DSA" && currentQuestion?.code && (
+                    <div className="mt-3">
+                      <ReactMarkdown className="prose prose-invert max-w-none markdown-content">
+                        {`\`\`\`${currentQuestion.code}\`\`\``}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+                
+                {/* MCQ Options */}
+                {inputType === "mcq" && (
+                  <RadioGroup
+                    value={mcqAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
+                    onValueChange={handleMcqChange}
+                    className="space-y-2"
+                  >
+                    {currentQuestion?.options?.map((option, idx) => (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <RadioGroupItem value={option} id={`option-${idx}`} />
+                        <Label htmlFor={`option-${idx}`} className="text-foreground cursor-pointer">{option}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+                
+                {/* Text/Audio Input */}
+                {inputType === "text-audio" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="text-answer" className="text-foreground">Your Answer (Text or Audio)</Label>
+                    <Input
+                      id="text-answer"
+                      value={textAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
+                      onChange={handleTextChange}
+                      placeholder="Type your answer or use the mic"
+                      className="text-foreground"
+                    />
+                    <Button
+                      type="button"
+                      onClick={recording ? handleStopRecording : handleStartRecording}
+                      variant={recording ? "destructive" : "secondary"}
+                      className="mt-2"
+                    >
+                      {recording ? "Stop Recording" : "Record Answer (Mic)"}
+                    </Button>
+                  </div>
+                )}
+                
+                {/* Audio Only Input */}
+                {inputType === "audio" && (
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Your Answer (Audio Only)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={audioAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
+                        readOnly
+                        placeholder="Your spoken answer will appear here"
+                        className="text-foreground"
+                      />
+                      <Button
+                        type="button"
+                        onClick={recording ? handleStopRecording : handleStartRecording}
+                        variant={recording ? "destructive" : "secondary"}
+                      >
+                        {recording ? "Stop Recording" : "Record Answer (Mic)"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+              
+              {/* Navigation Buttons */}
+              <div className="flex justify-between mb-4">
                 <Button
-                  type="button"
-                  onClick={recording ? handleStopRecording : handleStartRecording}
-                  variant={recording ? "destructive" : "secondary"}
-                  className="mt-2"
+                  onClick={() => setCurrentQuestionIdx((i) => Math.max(0, i - 1))}
+                  disabled={currentQuestionIdx === 0}
+                  variant="secondary"
+                  className="px-6 py-2 font-semibold"
                 >
-                  {recording ? "Stop Recording" : "Record Answer (Mic)"}
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setCurrentQuestionIdx((i) => Math.min(totalQuestions - 1, i + 1))}
+                  disabled={currentQuestionIdx === totalQuestions - 1}
+                  className="px-6 py-2 font-semibold"
+                >
+                  Next
                 </Button>
               </div>
-            )}
-            {inputType === "audio" && (
-              <div className="space-y-2">
-                <Label>Your Answer (Audio Only)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={audioAnswers[currentSection]?.[currentSubsection]?.[currentQuestionIdx] || ""}
-                    readOnly
-                    placeholder="Your spoken answer will appear here"
-                  />
-                  <Button
-                    type="button"
-                    onClick={recording ? handleStopRecording : handleStartRecording}
-                    variant={recording ? "destructive" : "secondary"}
-                  >
-                    {recording ? "Stop Recording" : "Record Answer (Mic)"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Card>
-          <div className="flex justify-between">
-            <Button
-              onClick={() => setCurrentQuestionIdx((i) => Math.max(0, i - 1))}
-              disabled={currentQuestionIdx === 0}
-              variant="secondary"
-            >
-              Previous
-            </Button>
-            <Button
-              onClick={() => setCurrentQuestionIdx((i) => Math.min(totalQuestions - 1, i + 1))}
-              disabled={currentQuestionIdx === totalQuestions - 1}
-            >
-              Next
-            </Button>
-            <Button className="mt-6 w-full" onClick={handleFinishQuiz}>
-              Finish Quiz
-            </Button>
-          </div>
-        </div>
-      )}
+              
+              {/* Finish Quiz Button */}
+              <Button 
+                className={`w-full py-3 font-semibold text-lg ${
+                  (() => {
+                    const answeredCount = Object.keys(mcqAnswers).length + 
+                                        Object.keys(textAnswers).length + 
+                                        Object.keys(audioAnswers).length;
+                    return answeredCount === 0 ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-primary hover:bg-primary/90';
+                  })()
+                }`} 
+                onClick={handleFinishQuiz}
+              >
+                {(() => {
+                  const answeredCount = Object.keys(mcqAnswers).length + 
+                                      Object.keys(textAnswers).length + 
+                                      Object.keys(audioAnswers).length;
+                  return answeredCount === 0 ? 'Finish Quiz (No Answers)' : 'Finish Quiz';
+                })()}
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
