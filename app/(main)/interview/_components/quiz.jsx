@@ -55,6 +55,21 @@ export default function Quiz() {
   const { loading: generatingQuiz, fn: generateQuizFn, data: quizData } = useFetch(generateQuiz);
   const { loading: savingResult, fn: saveQuizResultFn, data: resultData, setData: setResultData } = useFetch(saveQuizResult);
 
+  // Calculate total questions at component level
+  const totalQuestions = quizSections ? Object.values(quizSections).reduce((total, section) => {
+    return total + Object.values(section).reduce((sectionTotal, questions) => {
+      return sectionTotal + questions.length;
+    }, 0);
+  }, 0) : 0;
+
+  // Get current question
+  const currentQuestion = quizSections && currentSection && currentSubsection 
+    ? quizSections[currentSection][currentSubsection][currentQuestionIdx] 
+    : null;
+
+  // Get input type for current question
+  const inputType = getInputType(currentSection, currentSubsection);
+
   useEffect(() => {
     if (quizData) {
       setMcqAnswers({});
@@ -102,7 +117,7 @@ export default function Quiz() {
     }
   }, [mediaStream]);
 
-  // Audio level tracking
+  // Audio level tracking with proper bounds
   useEffect(() => {
     if (mediaStream) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -116,7 +131,9 @@ export default function Quiz() {
       const updateAudioLevel = () => {
         analyserRef.current.getByteFrequencyData(dataArray);
         const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-        setAudioLevel(avg);
+        // Limit audio level to 0-100 range and apply smoothing
+        const normalizedLevel = Math.min(100, Math.max(0, (avg / 128) * 100));
+        setAudioLevel(normalizedLevel);
         animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
       };
       updateAudioLevel();
@@ -425,28 +442,45 @@ export default function Quiz() {
 
   return (
     <div>
-      {/* Video/audio preview visible during quiz loading and quiz, but not before or after */}
-      {!quizFinished && !preQuizOpen && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ width: 320, height: 240, background: "#000", borderRadius: 8 }}
-          />
-          <div style={{ height: 10, width: 320, background: "#222", marginTop: 8, borderRadius: 4 }}>
-            <div style={{ height: "100%", width: `${audioLevel * 2}%`, background: "#0af", borderRadius: 4 }} />
-          </div>
-        </div>
-      )}
-      {/* Existing loading spinner and quiz content below */}
-      {loadingQuestions || !quizSections ? (
-        <div className="flex flex-col items-center mt-8">
-          <span className="mb-2 text-muted-foreground text-sm">Quiz generation may take 10–20 seconds. Please wait...</span>
-          <BarLoader width={200} color="gray" />
-        </div>
+      {/* Show quiz result when finished */}
+      {quizFinished && quizResult ? (
+        <QuizResult 
+          result={quizResult} 
+          videoUrl={videoUrl} 
+          onStartNew={() => {
+            setQuizFinished(false);
+            setQuizResult(null);
+            setPreQuizOpen(true);
+            setCurrentQuestionIdx(0);
+            setMcqAnswers({});
+            setTextAnswers({});
+            setAudioAnswers({});
+          }}
+        />
       ) : (
+        <>
+          {/* Video/audio preview visible during quiz loading and quiz, but not before or after */}
+          {!quizFinished && !preQuizOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{ width: 320, height: 240, background: "#000", borderRadius: 8 }}
+              />
+              <div style={{ height: 10, width: 320, background: "#222", marginTop: 8, borderRadius: 4 }}>
+                <div style={{ height: "100%", width: `${audioLevel}%`, background: "#0af", borderRadius: 4 }} />
+              </div>
+            </div>
+          )}
+          {/* Existing loading spinner and quiz content below */}
+          {loadingQuestions || !quizSections ? (
+            <div className="flex flex-col items-center mt-8">
+              <span className="mb-2 text-muted-foreground text-sm">Quiz generation may take 10–20 seconds. Please wait...</span>
+              <BarLoader width={200} color="gray" />
+            </div>
+          ) : (
         // ...rest of your quiz UI...
         <div className="mx-2 relative">
           {/* Timer on top right */}
@@ -464,7 +498,7 @@ export default function Quiz() {
                 <div className="w-full h-2 bg-muted rounded">
                   <div
                     className="h-2 bg-green-500 rounded transition-all"
-                    style={{ width: `${Math.min(100, (audioLevel / 128) * 100)}%` }}
+                    style={{ width: `${audioLevel}%` }}
                   />
                 </div>
               </div>
@@ -493,7 +527,7 @@ export default function Quiz() {
                 <div className="w-full h-2 bg-muted rounded">
                   <div
                     className="h-2 bg-green-500 rounded transition-all"
-                    style={{ width: `${Math.min(100, (audioLevel / 128) * 100)}%` }}
+                    style={{ width: `${audioLevel}%` }}
                   />
                 </div>
               </div>
@@ -649,6 +683,8 @@ export default function Quiz() {
             </Button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
