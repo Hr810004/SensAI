@@ -28,81 +28,232 @@ export async function generateQuizPrompt({ company, role, user }) {
   const prompt = `
 Generate a JSON mock interview quiz for a candidate applying for '${role || industry}' at '${company || ''}'.
 
-CRITICAL: Generate EXACTLY the number of questions specified below. Do NOT generate more questions.
+🚨 CRITICAL: Generate ONLY the specified number of questions. DO NOT generate 28 questions total.
 
-- Make all questions as specific as possible to the company and role (use public info if available).
-- Structure:
+EXACT QUESTION DISTRIBUTION (DO NOT EXCEED):
+- Aptitude > Logical Reasoning: EXACTLY 3 questions
+- Aptitude > Critical Reasoning: EXACTLY 3 questions  
+- Aptitude > Quantitative Aptitude: EXACTLY 3 questions
+- Aptitude > Data Interpretation: EXACTLY 3 questions
+- CS Fundamentals > DSA: EXACTLY 2 questions
+- CS Fundamentals > Operating Systems: EXACTLY 2 questions
+- CS Fundamentals > Databases: EXACTLY 2 questions
+- CS Fundamentals > Networking: EXACTLY 2 questions
+- CS Fundamentals > OOP/Software Engineering: EXACTLY 2 questions
+- Behavioral & Communication > Behavioral: EXACTLY 2 questions
+- Behavioral & Communication > Situational: EXACTLY 2 questions
+- Behavioral & Communication > Communication/Presentation: EXACTLY 2 questions
+
+REQUIRED JSON STRUCTURE:
 {
   "Aptitude": {
-    "Logical Reasoning": [3 MCQs],
-    "Critical Reasoning": [3 MCQs],
-    "Quantitative Aptitude": [3 MCQs],
-    "Data Interpretation": [3 MCQs]
+    "Logical Reasoning": [
+      {
+        "question": "Your actual question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option A",
+        "explanation": "Why this is correct"
+      },
+      {
+        "question": "Your second question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option B",
+        "explanation": "Why this is correct"
+      },
+      {
+        "question": "Your third question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option C",
+        "explanation": "Why this is correct"
+      }
+    ],
+    "Critical Reasoning": [
+      // EXACTLY 3 questions with same structure
+    ],
+    "Quantitative Aptitude": [
+      // EXACTLY 3 questions with same structure
+    ],
+    "Data Interpretation": [
+      // EXACTLY 3 questions with same structure
+    ]
   },
   "CS Fundamentals": {
-    "DSA": [2 questions: 1 LeetCode-style (questionType: 'leetcode-algorithm'), 1 code snippet (questionType: 'code-correction', 'code-completion', or 'missing-line')],
-    "Operating Systems": [2 open-ended],
-    "Databases": [2 open-ended],
-    "Networking": [2 open-ended],
-    "OOP/Software Engineering": [2 open-ended]
+    "DSA": [
+      {
+        "question": "Your DSA question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option A",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second DSA question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option B",
+        "explanation": "Explanation here"
+      }
+    ],
+    "Operating Systems": [
+      {
+        "question": "Your OS question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option A",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second OS question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option B",
+        "explanation": "Explanation here"
+      }
+    ],
+    "Databases": [
+      {
+        "question": "Your database question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option A",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second database question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option B",
+        "explanation": "Explanation here"
+      }
+    ],
+    "Networking": [
+      {
+        "question": "Your networking question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option A",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second networking question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option B",
+        "explanation": "Explanation here"
+      }
+    ],
+    "OOP/Software Engineering": [
+      {
+        "question": "Your OOP question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option A",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second OOP question here",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "Option B",
+        "explanation": "Explanation here"
+      }
+    ]
   },
   "Behavioral & Communication": {
-    "Behavioral": [2 open-ended],
-    "Situational": [2 open-ended],
-    "Communication/Presentation": [2 open-ended]
+    "Behavioral": [
+      {
+        "question": "Your behavioral question here",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second behavioral question here",
+        "explanation": "Explanation here"
+      }
+    ],
+    "Situational": [
+      {
+        "question": "Your situational question here",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second situational question here",
+        "explanation": "Explanation here"
+      }
+    ],
+    "Communication/Presentation": [
+      {
+        "question": "Your communication question here",
+        "explanation": "Explanation here"
+      },
+      {
+        "question": "Your second communication question here",
+        "explanation": "Explanation here"
+      }
+    ]
   }
 }
 
-EXACT QUESTION COUNT: 28 questions total
-- Aptitude: 12 questions (3 each subsection)
-- CS Fundamentals: 10 questions (2 each subsection)  
-- Behavioral: 6 questions (2 each subsection)
+IMPORTANT RULES:
+1. Generate EXACTLY the number specified for each subsection
+2. Do NOT generate extra questions beyond the specified count
+3. Do NOT generate 28 questions total - only the specified per subsection
+4. Every question must have meaningful content
+5. Use markdown formatting in questions: **bold**, *italic*, \`code\`, tables, etc.
+6. Make questions specific to '${role || industry}' role
+7. Return ONLY the JSON, no extra text
 
-IMPORTANT GUIDELINES:
-- MCQs: 4 options, correct answer, explanation.
-- DSA: 1 LeetCode-style, 1 code snippet-based.
-- Open-ended: question, explanation.
-- For ALL questions, use proper markdown formatting:
-  - **Bold text** for emphasis
-  - *Italic text* for important terms
-  - \`code snippets\` for inline code
-  - \`\`\`javascript\n// code blocks\n\`\`\` for multi-line code
-  - | Column1 | Column2 | Column3 | for tables
-  - |---------|---------|---------|
-  - | Data1   | Data2   | Data3   |
-  - Lists: - item1\n- item2
-  - Numbered lists: 1. item1\n2. item2
-- Keep questions concise and focused.
-- Return ONLY the JSON, no extra text or markdown.
-- DO NOT generate more than 28 questions total.
-- DO NOT add extra questions or sections.
+EXAMPLE: If Logical Reasoning needs 3 questions, generate exactly 3 questions, not 28.
 `;
   const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {
     const text = await getGeminiResponse(prompt, models);
     const cleanedText = text.replace(/```(?:json)?\n?/g, '').trim();
+    console.log('Raw AI response:', text.substring(0, 500) + '...');
+    console.log('Cleaned text:', cleanedText.substring(0, 500) + '...');
+    
     const quiz = JSON.parse(cleanedText);
     
-    // Validate the quiz structure
-    const totalQuestions = Object.values(quiz).reduce((total, section) => {
-      return total + Object.values(section).reduce((sectionTotal, questions) => {
-        return sectionTotal + questions.length;
-      }, 0);
-    }, 0);
-    
-    console.log(`Generated quiz with ${totalQuestions} questions`);
-    
-    if (totalQuestions > 30) {
-      console.warn(`Quiz generated ${totalQuestions} questions, expected ~28`);
-      // Try to trim excess questions if too many
-      Object.keys(quiz).forEach(section => {
-        Object.keys(quiz[section]).forEach(subsection => {
-          if (quiz[section][subsection].length > 3) {
-            quiz[section][subsection] = quiz[section][subsection].slice(0, 3);
-          }
-        });
+    // Debug: Log the structure
+    console.log('Quiz structure:', Object.keys(quiz));
+    Object.keys(quiz).forEach(section => {
+      Object.keys(quiz[section]).forEach(subsection => {
+        console.log(`${section} > ${subsection}:`, quiz[section][subsection].length, 'questions');
+        if (quiz[section][subsection].length > 0) {
+          console.log('First question:', quiz[section][subsection][0]);
+        }
       });
+    });
+    
+    // Validate the quiz structure and remove empty questions
+    let totalQuestions = 0;
+    let hasEmptyQuestions = false;
+    
+    Object.keys(quiz).forEach(section => {
+      Object.keys(quiz[section]).forEach(subsection => {
+        // Filter out empty or invalid questions
+        quiz[section][subsection] = quiz[section][subsection].filter(q => {
+          if (!q || !q.question || q.question.trim() === '' || q.question === 'null') {
+            hasEmptyQuestions = true;
+            return false;
+          }
+          return true;
+        });
+        totalQuestions += quiz[section][subsection].length;
+      });
+    });
+    
+    console.log(`Generated quiz with ${totalQuestions} valid questions`);
+    
+    if (hasEmptyQuestions) {
+      console.warn('Some questions were empty and have been removed');
     }
+    
+    // Ensure we don't exceed expected counts
+    const expectedCounts = {
+      'Aptitude': { 'Logical Reasoning': 3, 'Critical Reasoning': 3, 'Quantitative Aptitude': 3, 'Data Interpretation': 3 },
+      'CS Fundamentals': { 'DSA': 2, 'Operating Systems': 2, 'Databases': 2, 'Networking': 2, 'OOP/Software Engineering': 2 },
+      'Behavioral & Communication': { 'Behavioral': 2, 'Situational': 2, 'Communication/Presentation': 2 }
+    };
+    
+    // Trim excess questions if any subsection has too many
+    Object.keys(quiz).forEach(section => {
+      Object.keys(quiz[section]).forEach(subsection => {
+        const expected = expectedCounts[section]?.[subsection] || 2;
+        if (quiz[section][subsection].length > expected) {
+          quiz[section][subsection] = quiz[section][subsection].slice(0, expected);
+        }
+      });
+    });
     
     return quiz;
   } catch (e) {

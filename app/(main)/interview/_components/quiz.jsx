@@ -284,8 +284,7 @@ export default function Quiz() {
   // --- [5] Input type determination ---
   function getInputType(section, subsection) {
     if (section === "Aptitude") return "mcq";
-    if (section === "CS Fundamentals" && subsection === "DSA") return "text-audio";
-    if (section === "CS Fundamentals") return "audio";
+    if (section === "CS Fundamentals") return "mcq";
     if (section === "Behavioral & Communication") return "audio";
     return "mcq";
   }
@@ -415,18 +414,14 @@ export default function Quiz() {
       Object.entries(subs).forEach(([sub, qs]) => {
         qs.forEach((q, idx) => {
           let userAnswer = "";
-          if (section === "Aptitude") {
+          if (section === "Aptitude" || section === "CS Fundamentals") {
             userAnswer = mcqAnswers[section]?.[sub]?.[idx] || "";
-          } else if (section === "CS Fundamentals" && sub === "DSA") {
-            userAnswer = textAnswers[section]?.[sub]?.[idx] || "";
           } else {
             userAnswer = audioAnswers[section]?.[sub]?.[idx] || "";
           }
-          const correct = section === "Aptitude" && q.correctAnswer && userAnswer === q.correctAnswer;
-          if (section === "Aptitude") {
-            if (correct) sectionCorrect++;
-            sectionTotal++;
-          }
+          const correct = q.correctAnswer && userAnswer === q.correctAnswer;
+          if (correct) sectionCorrect++;
+          sectionTotal++;
           questionsReview.push({
             section,
             subsection: sub,
@@ -438,11 +433,9 @@ export default function Quiz() {
           });
         });
       });
-      if (section === "Aptitude") {
-        sectionScores[section] = sectionTotal ? (sectionCorrect / sectionTotal) * 100 : 0;
-        totalScore += sectionCorrect;
-        totalQuestions += sectionTotal;
-      }
+      sectionScores[section] = sectionTotal ? (sectionCorrect / sectionTotal) * 100 : 0;
+      totalScore += sectionCorrect;
+      totalQuestions += sectionTotal;
     });
     
     const improvementTips = {
@@ -676,14 +669,6 @@ export default function Quiz() {
                   <ReactMarkdown className="markdown-content">
                     {currentQuestion?.question || "No questions found."}
                   </ReactMarkdown>
-                  {/* Render code snippet for DSA questions if present */}
-                  {currentSection === "CS Fundamentals" && currentSubsection === "DSA" && currentQuestion?.code && (
-                    <div className="mt-3">
-                      <ReactMarkdown className="markdown-content">
-                        {`\`\`\`${currentQuestion.code}\`\`\``}
-                      </ReactMarkdown>
-                    </div>
-                  )}
                 </div>
                 
                 {/* MCQ Options */}
