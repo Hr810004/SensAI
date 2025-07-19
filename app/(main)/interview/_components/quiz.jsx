@@ -505,41 +505,69 @@ export default function Quiz() {
         />
       ) : (
         <>
-          {/* Loading state */}
+          {/* Loading state with video preview */}
           {loadingQuestions || !quizSections ? (
             <div className="flex flex-col items-center mt-8">
+              {/* Video Preview during loading */}
+              {mediaStream && (
+                <div className="flex flex-col items-center justify-center min-h-[300px] mb-6">
+                  {/* Audio Level Bar */}
+                  <div className="mb-2 w-full max-w-xs">
+                    <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
+                    <div className="w-full h-2 bg-muted rounded">
+                      <div
+                        className="h-2 bg-green-500 rounded transition-all"
+                        style={{ width: `${audioLevel}%` }}
+                      />
+                    </div>
+                  </div>
+                  {/* Video Preview */}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-48 h-36 rounded shadow border"
+                    style={{ objectFit: "cover" }}
+                  />
+                  <div className="mt-4">
+                    <BarLoader color="#4ade80" width={200} />
+                    <div className="text-sm text-muted-foreground mt-2">
+                      Preparing your quiz...
+                    </div>
+                  </div>
+                </div>
+              )}
               <span className="mb-2 text-muted-foreground text-sm">Quiz generation may take 10–20 seconds. Please wait...</span>
               <BarLoader width={200} color="gray" />
             </div>
           ) : (
             <div className="mx-2 relative">
-              {/* Single Video Preview with Audio Bar and Timer */}
+              {/* Video Preview with Audio Bar and Timer */}
               {mediaStream && !quizFinished && !loadingQuestions && (
-                <div className="flex flex-col items-center mb-6">
+                <div className="flex flex-col items-center justify-center mb-6">
+                  {/* Audio Level Bar */}
+                  <div className="mb-2 w-full max-w-xs">
+                    <div className="text-xs text-muted-foreground mb-1">Audio is ON</div>
+                    <div className="w-full h-2 bg-muted rounded">
+                      <div
+                        className="h-2 bg-green-500 rounded transition-all"
+                        style={{ width: `${audioLevel}%` }}
+                      />
+                    </div>
+                  </div>
+                  {/* Video Preview */}
                   <video
                     ref={videoRef}
-                    width={320}
-                    height={240}
-                    className="rounded border-2 border-primary bg-black shadow-lg mb-4"
-                    style={{ display: "block" }}
-                    muted
                     autoPlay
+                    muted
                     playsInline
+                    className="w-48 h-36 rounded shadow border"
+                    style={{ objectFit: "cover" }}
                   />
-                  {/* Combined Audio Bar and Timer */}
-                  <div className="flex items-center justify-between w-full max-w-lg">
-                    <div className="flex-1 mr-4">
-                      <div className="text-xs text-muted-foreground mb-1">Audio Level</div>
-                      <div className="w-full h-2 bg-muted rounded">
-                        <div
-                          className="h-2 bg-green-500 rounded transition-all"
-                          style={{ width: `${audioLevel}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-lg font-mono bg-muted px-4 py-2 rounded shadow whitespace-nowrap">
-                      ⏱️ {formatTime(timer)}
-                    </div>
+                  {/* Timer */}
+                  <div className="text-lg font-mono bg-muted px-4 py-2 rounded shadow whitespace-nowrap mt-2">
+                    ⏱️ {formatTime(timer)}
                   </div>
                 </div>
               )}
@@ -576,8 +604,8 @@ export default function Quiz() {
                     key={section}
                     className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
                       section === currentSection 
-                        ? "bg-primary text-white shadow-lg" 
-                        : "bg-muted text-foreground hover:bg-muted/80 border border-border"
+                        ? "bg-blue-600 text-white shadow-lg" 
+                        : "bg-gray-700 text-white hover:bg-gray-600 border border-gray-600"
                     }`}
                     onClick={() => {
                       setCurrentSection(section);
@@ -598,8 +626,8 @@ export default function Quiz() {
                     key={sub}
                     className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${
                       sub === currentSubsection 
-                        ? "bg-primary text-white shadow-md" 
-                        : "bg-muted text-foreground hover:bg-muted/80 border border-border"
+                        ? "bg-blue-600 text-white shadow-md" 
+                        : "bg-gray-700 text-white hover:bg-gray-600 border border-gray-600"
                     }`}
                     onClick={() => {
                       setCurrentSubsection(sub);
@@ -645,13 +673,13 @@ export default function Quiz() {
                   </div>
                 </div>
                 <div className="mb-2 text-foreground">
-                  <ReactMarkdown className="prose prose-invert max-w-none markdown-content">
+                  <ReactMarkdown className="markdown-content">
                     {currentQuestion?.question || "No questions found."}
                   </ReactMarkdown>
                   {/* Render code snippet for DSA questions if present */}
                   {currentSection === "CS Fundamentals" && currentSubsection === "DSA" && currentQuestion?.code && (
                     <div className="mt-3">
-                      <ReactMarkdown className="prose prose-invert max-w-none markdown-content">
+                      <ReactMarkdown className="markdown-content">
                         {`\`\`\`${currentQuestion.code}\`\`\``}
                       </ReactMarkdown>
                     </div>
@@ -666,9 +694,13 @@ export default function Quiz() {
                     className="space-y-2"
                   >
                     {currentQuestion?.options?.map((option, idx) => (
-                      <div key={idx} className="flex items-center space-x-2">
-                        <RadioGroupItem value={option} id={`option-${idx}`} />
-                        <Label htmlFor={`option-${idx}`} className="text-foreground cursor-pointer">{option}</Label>
+                      <div key={idx} className="flex items-start space-x-2">
+                        <RadioGroupItem value={option} id={`option-${idx}`} className="mt-1" />
+                        <Label htmlFor={`option-${idx}`} className="text-foreground cursor-pointer flex-1">
+                          <ReactMarkdown className="markdown-content text-sm">
+                            {option}
+                          </ReactMarkdown>
+                        </Label>
                       </div>
                     ))}
                   </RadioGroup>

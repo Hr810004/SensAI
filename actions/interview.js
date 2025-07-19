@@ -28,6 +28,8 @@ export async function generateQuizPrompt({ company, role, user }) {
   const prompt = `
 Generate a JSON mock interview quiz for a candidate applying for '${role || industry}' at '${company || ''}'.
 
+CRITICAL: Generate EXACTLY the number of questions specified below. Do NOT generate more questions.
+
 - Make all questions as specific as possible to the company and role (use public info if available).
 - Structure:
 {
@@ -51,6 +53,11 @@ Generate a JSON mock interview quiz for a candidate applying for '${role || indu
   }
 }
 
+EXACT QUESTION COUNT: 28 questions total
+- Aptitude: 12 questions (3 each subsection)
+- CS Fundamentals: 10 questions (2 each subsection)  
+- Behavioral: 6 questions (2 each subsection)
+
 IMPORTANT GUIDELINES:
 - MCQs: 4 options, correct answer, explanation.
 - DSA: 1 LeetCode-style, 1 code snippet-based.
@@ -67,13 +74,36 @@ IMPORTANT GUIDELINES:
   - Numbered lists: 1. item1\n2. item2
 - Keep questions concise and focused.
 - Return ONLY the JSON, no extra text or markdown.
-- Total questions should be around 30-35.
+- DO NOT generate more than 28 questions total.
+- DO NOT add extra questions or sections.
 `;
   const models = ['gemini-2.5-pro', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'];
   try {
     const text = await getGeminiResponse(prompt, models);
     const cleanedText = text.replace(/```(?:json)?\n?/g, '').trim();
     const quiz = JSON.parse(cleanedText);
+    
+    // Validate the quiz structure
+    const totalQuestions = Object.values(quiz).reduce((total, section) => {
+      return total + Object.values(section).reduce((sectionTotal, questions) => {
+        return sectionTotal + questions.length;
+      }, 0);
+    }, 0);
+    
+    console.log(`Generated quiz with ${totalQuestions} questions`);
+    
+    if (totalQuestions > 30) {
+      console.warn(`Quiz generated ${totalQuestions} questions, expected ~28`);
+      // Try to trim excess questions if too many
+      Object.keys(quiz).forEach(section => {
+        Object.keys(quiz[section]).forEach(subsection => {
+          if (quiz[section][subsection].length > 3) {
+            quiz[section][subsection] = quiz[section][subsection].slice(0, 3);
+          }
+        });
+      });
+    }
+    
     return quiz;
   } catch (e) {
     throw new Error(e.message || 'Failed to generate quiz');

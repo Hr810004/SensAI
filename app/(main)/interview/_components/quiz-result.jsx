@@ -72,12 +72,12 @@ export default function QuizResult({ result, videoUrl, onStartNew, hideStartNew 
         {/* Video Preview & Download */}
         {videoUrl && (
           <div className="mt-6">
-            <h3 className="font-medium mb-2">Quiz Session Recording</h3>
+            <h3 className="font-medium mb-2 text-foreground">Quiz Session Recording</h3>
             <video src={videoUrl} controls className="w-full max-w-lg rounded shadow" />
             <a
               href={videoUrl}
               download="quiz-recording.webm"
-              className="inline-block mt-2 px-4 py-2 bg-primary text-white rounded shadow"
+              className="inline-block mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow font-semibold"
             >
               Download Recording
             </a>
