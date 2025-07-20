@@ -151,7 +151,7 @@ export default function Quiz() {
 
   // --- [1] Ensure video/audio preview always works, and mediaStream is set up reliably ---
   useEffect(() => {
-    if (!preQuizOpen && !mediaStream) {
+    if (!preQuizOpen && !mediaStream && !quizFinished) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then((stream) => {
           setMediaStream(stream);
@@ -178,7 +178,7 @@ export default function Quiz() {
         mediaStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [preQuizOpen]);
+  }, [preQuizOpen, quizFinished]);
 
   // Always attach mediaStream to videoRef when available
   useEffect(() => {
@@ -256,7 +256,10 @@ export default function Quiz() {
                 }
               } else {
                 if (!localNoFaceTimer) {
-                  localNoFaceTimer = setTimeout(() => setFaceDetected(false), 3000);
+                  localNoFaceTimer = setTimeout(() => {
+                    setFaceDetected(false);
+                    setLastFaceDetectionState(true);
+                  }, 3000); 
                 }
               }
             }
@@ -306,7 +309,7 @@ export default function Quiz() {
 
   // --- [3.2] Toast notifications for face detection ---
   useEffect(() => {
-    if (!quizFinished && faceDetected !== lastFaceDetectionState) {
+    if (!quizFinished) {
       if (!faceDetected) {
         toast.error("🚫 No face detected! Please ensure you are present for the quiz.", {
           duration: 5000,
@@ -315,7 +318,7 @@ export default function Quiz() {
             onClick: () => {}
           }
         });
-      } else {
+      } else if (faceDetected !== lastFaceDetectionState) {
         toast.success("✅ Face detected. You can continue with the quiz.", {
           duration: 3000
         });
@@ -324,18 +327,7 @@ export default function Quiz() {
     }
   }, [faceDetected, lastFaceDetectionState, quizFinished]);
 
-  // --- [3.3] Periodic face detection status reminder ---
-  useEffect(() => {
-    if (!quizFinished && faceDetected) {
-      const reminderInterval = setInterval(() => {
-        toast.info("👁️ Face detection is active. Please stay visible.", {
-          duration: 2000
-        });
-      }, 30000); // Show reminder every 30 seconds
 
-      return () => clearInterval(reminderInterval);
-    }
-  }, [quizFinished, faceDetected]);
 
   // --- [4] Quiz generation with proper error handling ---
   const handleStartQuiz = async (selectedCompany, selectedRole) => {
@@ -525,8 +517,35 @@ export default function Quiz() {
     }
     
     setQuizFinished(true);
+    
+    // Stop media recorder
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
+    }
+    
+    // Stop all media streams (camera and audio)
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      setMediaStream(null);
+    }
+    
+    // Stop audio context if active
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    // Cancel any ongoing animations
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    // Stop speech recognition if active
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setRecording(false);
     }
     
     const sectionScores = {};
