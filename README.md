@@ -60,14 +60,6 @@
 
 ---
 
-## 🖼️ Screenshots
-
-| Dashboard | Resume Builder | Mock Interview |
-|-----------|---------------|---------------|
-| ![Dashboard](public/banner.jpeg) | ![Resume Builder](public/banner2.jpeg) | ![Mock Interview](public/banner3.jpeg) |
-
----
-
 ## 🛠️ Tools & Technologies
 
 - **Next.js** (App Router)
@@ -126,7 +118,7 @@ npm run dev
 1. Add environment variables to your hosting platform (e.g., Vercel, Railway, Render).
 2. Deploy your app. For Vercel, connect your repo and set the environment variables.
 
-**Live Demo:** [https://sens-ai-harsh810.live/](https://sens-ai-harsh810.live/)
+**Explore:** [https://sens-ai-harsh810.live/](https://sens-ai-harsh810.live/)
 
 ---
 
@@ -180,8 +172,6 @@ Below are example screenshots for each major feature. Replace the image paths wi
 | LeetCode Stats & Analysis       | ![LeetCode](public/leetcode.png)                |
 | Skill Gap Visualization         | ![Skill Gap](public/skill-gap.png)              |
 | Industry Insights               | ![Industry Insights](public/industry.png)       |
-
-> **Note:** Place your screenshots in the `public/` directory and update the image paths as needed.
 
 ---
 
